@@ -1,0 +1,45 @@
+[package]
+name = "ecdsa_pops"
+version = "0.1.0"
+authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com"]
+edition = "2021"
+description = "TODO"
+# TODO: license
+# TODO: repository
+
+[lib]
+doctest = false
+
+[dependencies]
+bellpepper-core = { workspace = true }
+bellpepper = { workspace = true }
+ff = { workspace = true }
+
+merlin = { workspace = true }
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+ark-std = { workspace = true }
+serde = { workspace = true }
+bincode = { workspace = true }
+rand_core = { workspace = true }
+thiserror = { workspace = true }
+r1csipa = { path = "../r1csipa/" }
+rok = { path = "../rok/" }
+
+halo2curves = { workspace = true }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [
+  "asm",
+] }
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[features]
+# default = ["print-trace"]
+print-trace = ["ark-std/print-trace", "r1csipa/print-trace"]
+
+[[bench]]
+name = "pop_native"
+harness = false

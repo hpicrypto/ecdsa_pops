@@ -1,0 +1,37 @@
+[package]
+name = "r1csipa"
+version = "0.1.0"
+edition = "2021"
+authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com"]
+description = "R1CS to IPA transformation with zero-knowledge and committed-input support"
+license = "MIT"
+# TODO: repository
+
+[lib]
+doctest = false
+
+[dependencies]
+halo2curves = { workspace = true }
+merlin = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+bincode = { workspace = true }
+ark-std = { workspace = true }
+rayon = "1.8"
+subtle = "2.2.1"
+rand_core = { workspace = true }
+
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [
+  "asm",
+] }
+
+bellpepper-core = { workspace = true }
+
+
+[dev-dependencies]
+rand = "0.8"
+
+[features]
+print-trace = ["ark-std/print-trace"]

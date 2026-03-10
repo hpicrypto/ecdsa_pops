@@ -1,0 +1,18 @@
+[package]
+name = "rok"
+version = "0.1.0"
+authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com"]
+edition = "2021"
+description = "An implementation of Reductions of Knowledge"
+# TODO: license = ""
+# TODO: repository = ""
+
+[lib]
+doctest = false
+
+[dependencies]
+merlin = { workspace = true }
+bincode = { workspace = true }
+thiserror = { workspace = true }
+ark-std = { workspace = true }
+serde = { workspace = true }
