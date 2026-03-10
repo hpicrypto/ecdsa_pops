@@ -349,7 +349,7 @@ impl<C: CurveAffine + SerdeObject> InnerProductArgZK<C> {
         //    proof.B ==
         //              <r * e * ver_scalars * G_factors , G> + <s * e * ver_scalars_inv
         // * H_factors, H> +              (rs) U + delta V + (-e^2) P + (-e) A +
-        //              <-(e^2)*(u^2), L> + < -(e^2)*(1/u)^2, R>
+        //   <-(e^2)*(u^2), L> + < -(e^2)*(1/u)^2, R>
 
         let (u_sq, u_inv_sq, ver_scalars_s) =
             Self::verification_scalars(&self.L_vec, &self.R_vec, transcript)?;
@@ -419,9 +419,8 @@ mod tests {
     // use halo2curves::t256::T256 as Projective;
     // use halo2curves::t256::T256Affine as Affine;
     // use halo2curves::t256::Fq as Scalar;
-    use halo2curves::group::prime::PrimeCurveAffine;
     use halo2curves::{
-        group::Group,
+        group::{prime::PrimeCurveAffine, Group},
         pasta::{Fp as Scalar, Vesta as Projective, VestaAffine as Affine},
     };
     use rand_core::OsRng;

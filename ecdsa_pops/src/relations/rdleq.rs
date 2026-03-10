@@ -46,8 +46,8 @@ where
 }
 
 #[derive(Clone, Debug)]
-/// Parameters of the relation [RelDLEQ] which consist of two Pedersen commitment keys, one for
-/// each group
+/// Parameters of the relation [RelDLEQ] which consist of two Pedersen
+/// commitment keys, one for each group
 pub(crate) struct RelDLEQParams<C1, C2>
 where
     C1: CurveAffine,

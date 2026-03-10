@@ -63,7 +63,8 @@ where
     C::ScalarExt: PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>
         + EndianRepr,
 {
-    /// Computes the first message of Committed Schnorr consisting of a commitment to R=rK.
+    /// Computes the first message of Committed Schnorr consisting of a
+    /// commitment to R=rK.
     fn compute_first_message<R>(
         &self,
         K: &Secp256r1Affine,

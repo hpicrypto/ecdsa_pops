@@ -134,10 +134,11 @@ where
         (x, w)
     }
 
-    /// Computes the verifier challenge and returns the corresponding field elements in both scalar
-    /// fields.
+    /// Computes the verifier challenge and returns the corresponding field
+    /// elements in both scalar fields.
     ///
-    /// NOTE: Assumes the scalar fields of C1, C2 are represented in *little endian*
+    /// NOTE: Assumes the scalar fields of C1, C2 are represented in *little
+    /// endian*
     pub(crate) fn get_challenge(&self, transcript: &mut Transcript) -> BigUint {
         if (self.b_c % 8) != 0 {
             unimplemented!()

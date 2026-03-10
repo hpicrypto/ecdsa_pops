@@ -36,13 +36,15 @@ pub type R1CSProofParams<C: CurveAffine> = IPAParams<C>;
 
 #[derive(Serialize, Clone)]
 /// A r1cs instance that allows for part of the public input to be committed.
-/// By convention the public input is always of the form 1 || public_values || committed_values
+/// By convention the public input is always of the form 1 || public_values ||
+/// committed_values
 pub struct R1CSInstance<F: PrimeField> {
     pub rows: usize, // rows in A, B, C, number of constraints
     pub cols: usize, /* cols in A, B, C, length of z = [witness, 1, inputs], 1 must be
                       * included in inputs */
     pub inputs_len: usize, // number of inputs, implies |witness| = cols - inputs_len
-    pub com_inputs_len: usize, /* number of committed_inputs, implies |pub_inputs| = inputs_len - com_inputs_len */
+    pub com_inputs_len: usize, /* number of committed_inputs, implies |pub_inputs| = inputs_len -
+                            * com_inputs_len */
     pub A: R1CSMatrix<F>,
     pub B: R1CSMatrix<F>,
     pub C: R1CSMatrix<F>,
@@ -146,7 +148,8 @@ impl<F: PrimeField> R1CSInstance<F> {
         });
     }
 
-    /// Given parameters, returns the commitment key corresponding to the committed inputs.
+    /// Given parameters, returns the commitment key corresponding to the
+    /// committed inputs.
     pub fn commitment_key<C: CurveAffine>(&self, params: &R1CSProofParams<C>) -> Vec<C> {
         // compute I = <0||0||committed_inputs||0, G> + <0, H>
         let n = self.cols;

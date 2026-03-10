@@ -23,7 +23,8 @@ use crate::{
 /// The ECDSA [Relation]
 ///
 /// - CCom is the [CurveAffine] where we commit to.
-/// - L is the number of limbs needed to decompose a P256 base element to CCom::Scalar field elements
+/// - L is the number of limbs needed to decompose a P256 base element to
+///   CCom::Scalar field elements
 pub struct RelECDSA<CCom, const L: usize>
 where
     CCom: CurveAffine,

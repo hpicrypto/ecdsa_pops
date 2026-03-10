@@ -50,7 +50,8 @@ impl ECDSA {
         (sk, pk)
     }
 
-    /// Create a new [ECDSASignature] given that the message has already been hashed into a scalar [Fq]
+    /// Create a new [ECDSASignature] given that the message has already been
+    /// hashed into a scalar [Fq]
     pub fn sign_prehashed<R>(
         &self,
         secret_key: &Fq,
@@ -84,7 +85,8 @@ impl ECDSA {
         }
     }
 
-    /// Verify an [ECDSASignature] given that the message has already been hashed into a scalar [Fq]
+    /// Verify an [ECDSASignature] given that the message has already been
+    /// hashed into a scalar [Fq]
     pub fn verify_prehashed(
         &self,
         public_key: &Secp256r1Affine,
@@ -108,7 +110,8 @@ impl ECDSA {
         }
     }
 
-    /// converts the [ECDSASignature] to the alternative form [ECDSASignatureConverted]
+    /// converts the [ECDSASignature] to the alternative form
+    /// [ECDSASignatureConverted]
     pub fn convert(
         &self,
         public_key: &Secp256r1Affine,
@@ -126,7 +129,8 @@ impl ECDSA {
         }
     }
 
-    /// Verify an [ECDSASignatureConverted] given that the message has already been hashed into an [Fq] scalar
+    /// Verify an [ECDSASignatureConverted] given that the message has already
+    /// been hashed into an [Fq] scalar
     pub fn verify_prehashed_converted(
         &self,
         public_key: &Secp256r1Affine,

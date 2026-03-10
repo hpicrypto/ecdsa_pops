@@ -54,7 +54,8 @@ where
     C::ScalarExt:
         PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
 {
-    /// helper function to samples a random statement/witness pair for this commitment key
+    /// helper function to samples a random statement/witness pair for this
+    /// commitment key
     fn sample_random_pair<R>(
         &self,
         pp: &RelPedersenParams<C>,

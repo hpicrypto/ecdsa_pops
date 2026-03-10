@@ -1,7 +1,9 @@
-//! Implementations of proof-of-possesions (PoP) based on ECDSA signatures over P256.
+//! Implementations of proof-of-possesions (PoP) based on ECDSA signatures over
+//! P256.
 //!
-//! The signatures are assumed to be on random nonces and the one part of the signature
-//! (x-coordinate of of the random point sampled by the signer) is known
+//! The signatures are assumed to be on random nonces and the one part of the
+//! signature (x-coordinate of of the random point sampled by the signer) is
+//! known
 
 #![deny(missing_docs)]
 #![allow(non_snake_case)]

@@ -73,8 +73,8 @@ impl PoPNativeNizk {
 
 /// The type of the composed rok to prove proof-of-possession
 ///
-/// We don't open the commitment used in the circuit since we can extract the opening from the
-/// previous proofs
+/// We don't open the commitment used in the circuit since we can extract the
+/// opening from the previous proofs
 type PoPNativeComposedRoK = rok_compose_type!(
 PopError;
             (

@@ -1,5 +1,5 @@
-//! An implementation of reductions of knowledge with support for parallel and sequential
-//! composition
+//! An implementation of reductions of knowledge with support for parallel and
+//! sequential composition
 
 #![deny(missing_docs)]
 #![deny(clippy::missing_docs_in_private_items)]

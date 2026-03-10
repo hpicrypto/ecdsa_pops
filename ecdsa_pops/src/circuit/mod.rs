@@ -2,7 +2,8 @@
 //! T = cR + Q where:
 //!     - T (in T256), c (in scalar field of P256) are public
 //!     - R, Q (in T256) are private values
-//!     - Rx, Qx (in T256 Scalar) are committed public inputs using Pedersen over T256
+//!     - Rx, Qx (in T256 Scalar) are committed public inputs using Pedersen
+//!       over T256
 //!     - rho, the randomness of the committments of Rx, Qx is private
 
 #![allow(non_snake_case)]
@@ -10,10 +11,7 @@ use ark_std::{end_timer, start_timer};
 use bellpepper_core::{num::AllocatedNum, Circuit, ConstraintSystem, SynthesisError};
 use halo2curves::{secp256r1::Secp256r1Affine, t256::T256Affine};
 use merlin::Transcript;
-use r1csipa::{
-    bellpepper::r1cs::R1CSShape,
-    {R1CSInstance, R1CSProof, R1CSProofParams},
-};
+use r1csipa::{bellpepper::r1cs::R1CSShape, R1CSInstance, R1CSProof, R1CSProofParams};
 
 use crate::{
     circuit::ecc::AllocatedPoint,
@@ -149,7 +147,8 @@ impl<const SEC_PARAM_BYTES: usize> CSchnorrCircuit<SEC_PARAM_BYTES> {
         params
     }
 
-    /// Specialize parameters for the proven circuit. Uses an external pedersen key for committed input
+    /// Specialize parameters for the proven circuit. Uses an external pedersen
+    /// key for committed input
     pub fn specialize_parameters(
         &self,
         universal: &R1CSProofParams<T256Affine>,
@@ -233,7 +232,8 @@ impl<const SEC_PARAM_BYTES: usize> CSchnorrCircuit<SEC_PARAM_BYTES> {
         // Create R1CS instance for verification (without witness)
         let Tx = fp_to_fr(&public_inputs.T.x.clone());
         let Ty = fp_to_fr(&public_inputs.T.y.clone());
-        // Tx, Ty, 0 is the point T, and the 3 last zeros correspond to the committed values
+        // Tx, Ty, 0 is the point T, and the 3 last zeros correspond to the committed
+        // values
         let pi = vec![
             Fr::from(1),
             Tx,

@@ -1,18 +1,21 @@
 //! RelCSchnorr:
-//!     - params: pedersen commitment key in (Generic) Curve  
-//!     - statement T (in [Secp256r1Affine]), c (in [Fq]) (of SEC_PARAM bytes), C (in generic [CurveAffine])
+//!     - params: pedersen commitment key in (Generic) Curve
+//!     - statement T (in [Secp256r1Affine]), c (in [Fq]) (of SEC_PARAM bytes),
+//!       C (in generic [CurveAffine])
 //!     - witness R, Q (in [Secp256r1Affine]), rho (in generic C scalar field)
 //!     s.t.
-//!     1. C = Commit(ck, R.x, Q.x; r) where ck is a Pedersen key  and Q.x, R.x encoded in Curve
+//!     1. C = Commit(ck, R.x, Q.x; r) where ck is a Pedersen key  and Q.x, R.x
+//!        encoded in Curve
 //!     2. T = cR + Q (over [Secp256r1Affine]) where
 //!
-//! The relation captures the task of the sigma protocol verifier after running a "committed"
-//! version of the Schnorr protocol (where the statement H=kG and the first message R=rG are
-//! committed in some other curve).
+//! The relation captures the task of the sigma protocol verifier after running
+//! a "committed" version of the Schnorr protocol (where the statement H=kG and
+//! the first message R=rG are committed in some other curve).
 //!
-//! The relation is generic over some [CurveAffine] that defines the commitment scheme and a
-//! constant L which defines the number of limbs needed to represent [Secp256r1Affine] base
-//! elements in the generic curve's scalar field
+//! The relation is generic over some [CurveAffine] that defines the commitment
+//! scheme and a constant L which defines the number of limbs needed to
+//! represent [Secp256r1Affine] base elements in the generic curve's scalar
+//! field
 
 use ff::PrimeField;
 use halo2curves::{group::Curve, secp256r1::Secp256r1Affine, CurveAffine};

@@ -1,5 +1,5 @@
-//! This module defines Reductions of Knowledge ([RoK]s) and generically implements parallel and
-//! sequential composition
+//! This module defines Reductions of Knowledge ([RoK]s) and generically
+//! implements parallel and sequential composition
 use std::{error::Error, marker::PhantomData};
 
 use ark_std::{
@@ -48,7 +48,8 @@ pub trait RoK {
     where
         R: RngCore + CryptoRng;
 
-    /// Given a statement and proof, it reduces a statement RelationSource -> RelationTarget
+    /// Given a statement and proof, it reduces a statement RelationSource ->
+    /// RelationTarget
     ///
     /// Returns the reduced statement
     fn reduce_statement(
@@ -361,7 +362,8 @@ where
 ///
 /// Parentheses can be used to control grouping.
 ///
-/// The macro expands to nested [`SequentialRoK`] and [`ParallelRoK`] instantiations.
+/// The macro expands to nested [`SequentialRoK`] and [`ParallelRoK`]
+/// instantiations.
 ///
 /// # Syntax
 ///
@@ -409,7 +411,8 @@ macro_rules! rok_compose {
 }
 
 #[macro_export]
-/// macro to construct complex composed [RoK]s types given the individual [RoK]s types.
+/// macro to construct complex composed [RoK]s types given the individual [RoK]s
+/// types.
 ///
 /// Usage:
 /// type MyComposedRoK = rok_compose_type!(

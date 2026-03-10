@@ -1,27 +1,27 @@
 use ff::{Field, PrimeField};
-use halo2curves::bls12381::Fr as BlsScalar;
-use halo2curves::group::Curve;
-use halo2curves::secp256r1::Secp256r1Affine;
-use halo2curves::t256::T256Affine;
-use halo2curves::CurveExt;
-use halo2curves::{bls12381::G1Affine, CurveAffine};
+use halo2curves::{
+    bls12381::{Fr as BlsScalar, G1Affine},
+    group::Curve,
+    secp256r1::Secp256r1Affine,
+    t256::T256Affine,
+    CurveAffine, CurveExt,
+};
 use num_bigint::BigUint;
 use r1csipa::msm_function;
 use rand_core::{OsRng, RngCore};
 use rok::{Relation, RelationProduct};
 
-use crate::circuit::utils::big_to_ff;
-use crate::errors::PopError;
-use crate::relations::rcshnorr::{
-    RelCSchnorr, RelCSchnorrParams, RelCSchnorrStatement, RelCSchnorrWitness,
+use crate::{
+    circuit::utils::big_to_ff,
+    errors::PopError,
+    relations::{
+        rcshnorr::{RelCSchnorr, RelCSchnorrParams, RelCSchnorrStatement, RelCSchnorrWitness},
+        rdleq::{RelDLEQ, RelDLEQParams, RelDLEQStatement, RelDLEQWitness},
+        recdsa::{RelECDSA, RelECDSAParams, RelECDSAStatement, RelECDSAWitness},
+        rpedersen::{RelPedersen, RelPedersenParams, RelPedersenStatement, RelPedersenWitness},
+    },
+    utils::{ecdsa::ECDSA, fp_to_scalars, Fq, Fr},
 };
-use crate::relations::rdleq::{RelDLEQ, RelDLEQParams, RelDLEQStatement, RelDLEQWitness};
-use crate::relations::recdsa::{RelECDSA, RelECDSAParams, RelECDSAStatement, RelECDSAWitness};
-use crate::relations::rpedersen::{
-    RelPedersen, RelPedersenParams, RelPedersenStatement, RelPedersenWitness,
-};
-use crate::utils::ecdsa::ECDSA;
-use crate::utils::{fp_to_scalars, Fq, Fr};
 
 /// Creates a random pedersen commitment key of size L
 pub(crate) fn pedersen_key<CCom: CurveAffine>(key_size: usize, label: &'static str) -> Vec<CCom> {

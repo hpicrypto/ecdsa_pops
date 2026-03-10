@@ -1,7 +1,7 @@
 //! [RoK] reducing [RelCSchnorr] -> [RelPedersen]
 //!
-//! The RoK Runs the circuit proofs and reduces to verifying the prover knows a valid opening
-//! of the committed inputs
+//! The RoK Runs the circuit proofs and reduces to verifying the prover knows a
+//! valid opening of the committed inputs
 
 // TODO: Change how rng works in circuit and apply here
 use ark_std::{end_timer, start_timer};
@@ -169,29 +169,23 @@ impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTE
 mod tests {
 
     use ff::Field;
-    use halo2curves::group::Curve;
-    use halo2curves::secp256r1::Secp256r1Affine;
-    use halo2curves::t256::T256Affine;
+    use halo2curves::{group::Curve, secp256r1::Secp256r1Affine, t256::T256Affine};
     use merlin::Transcript;
     use num_bigint::BigUint;
     use r1csipa::msm_function;
     use rand_core::{OsRng, RngCore};
-    use rok::rok_compose;
-    use rok::Nizk;
-    use rok::Relation;
-    use rok::RoK;
+    use rok::{rok_compose, Nizk, Relation, RoK};
 
-    use crate::circuit::utils::biguint_to_scalar;
-
-    use crate::circuit::CSchnorrCircuit;
-    use crate::errors::PopError;
-    use crate::relations::rcshnorr::{
-        RelCSchnorr, RelCSchnorrParams, RelCSchnorrStatement, RelCSchnorrWitness,
+    use crate::{
+        circuit::{utils::biguint_to_scalar, CSchnorrCircuit},
+        errors::PopError,
+        relations::{
+            rcshnorr::{RelCSchnorr, RelCSchnorrParams, RelCSchnorrStatement, RelCSchnorrWitness},
+            tests::pedersen_key,
+        },
+        roks::{circuit_rok::CircuitRoK, pedersen_rok::PedersenRoK},
+        utils::{fp_to_fr, Fp, Fq},
     };
-    use crate::relations::tests::pedersen_key;
-    use crate::roks::circuit_rok::CircuitRoK;
-    use crate::roks::pedersen_rok::PedersenRoK;
-    use crate::utils::{fp_to_fr, Fp, Fq};
 
     // sample a field element from bytes
     fn c_from_bytes<const SEC_PARAM_BYTES: usize>(bytes: [u8; SEC_PARAM_BYTES]) -> Fq {

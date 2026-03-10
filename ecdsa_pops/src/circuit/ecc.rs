@@ -1,5 +1,5 @@
-//! This module implements various elliptic curve gadgets. This is a small adaptation of [this
-//! implementation](https://github.com/zaverucha/signature-proof/blob/main/nr-blind-sig/src/ecc.rs)
+//! This module implements various elliptic curve gadgets. This is a small
+//! adaptation of [this implementation](https://github.com/zaverucha/signature-proof/blob/main/nr-blind-sig/src/ecc.rs)
 
 #![allow(non_snake_case)]
 use bellpepper::gadgets::Assignment;
@@ -558,7 +558,8 @@ where
         Ok(acc)
     }
 
-    /// Same as [Self::scalar_mul] but the scalar s is a priori known (part of the circuit)_ and not a public input.
+    /// Same as [Self::scalar_mul] but the scalar s is a priori known (part of
+    /// the circuit)_ and not a public input.
     pub fn scalar_mul_public_scalar<CS: ConstraintSystem<Scalar>>(
         &self,
         mut cs: CS,

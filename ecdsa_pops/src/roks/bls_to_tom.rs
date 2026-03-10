@@ -63,7 +63,8 @@ impl BlsToTomRoK {
         }
     }
 
-    /// Creates the two [RelECDSAStatement]s from a [RelECDSAStatement]/[RelECDSAWitness] pair
+    /// Creates the two [RelECDSAStatement]s from a
+    /// [RelECDSAStatement]/[RelECDSAWitness] pair
     fn dleq_from_witness<R>(
         &self,
         x_ecdsa: &RelECDSAStatement<G1Affine, 2>,
@@ -121,7 +122,8 @@ impl BlsToTomRoK {
         [r_low, r_high]
     }
 
-    /// Creates the two [RelDLEQStatement] from a [RelECDSAStatement]/[DLEQRoKProof] pair
+    /// Creates the two [RelDLEQStatement] from a
+    /// [RelECDSAStatement]/[DLEQRoKProof] pair
     fn dleq_from_proof(
         &self,
         x_ecdsa: &RelECDSAStatement<G1Affine, 2>,

@@ -11,9 +11,11 @@ use crate::{
 
 pub mod ecdsa;
 
-/// The scalar field of [T256Affine] (which is the same as the base field of [Secp256r1Affine])
+/// The scalar field of [T256Affine] (which is the same as the base field of
+/// [Secp256r1Affine])
 pub type Fr = <T256Affine as CurveAffine>::ScalarExt;
-/// The base field of [Secp256r1Affine] (which is the same as the scalar field of [T256Affine])
+/// The base field of [Secp256r1Affine] (which is the same as the scalar field
+/// of [T256Affine])
 pub type Fp = <Secp256r1Affine as CurveAffine>::Base;
 /// The scalar field of [Secp256r1Affine]
 pub type Fq = <Secp256r1Affine as CurveAffine>::ScalarExt;
@@ -28,7 +30,8 @@ pub(crate) fn fq_to_fr(a: &Fq) -> Fr {
     Fr::from_bytes(&a.to_bytes()).unwrap()
 }
 
-/// Converts a P256 base  element [Fp] to a representation in [CurveAffine::ScalarExt].
+/// Converts a P256 base  element [Fp] to a representation in
+/// [CurveAffine::ScalarExt].
 ///
 /// The result is given in little endian limbs
 pub(crate) fn fp_to_scalars<C, const N_LIMBS: usize>(
@@ -59,7 +62,8 @@ where
     Ok(res)
 }
 
-/// Converts [CurveAffine::ScalarExt] limbs to a P256 Base element [Fp] fp element Fp is little endian
+/// Converts [CurveAffine::ScalarExt] limbs to a P256 Base element [Fp] fp
+/// element Fp is little endian
 pub(crate) fn scalars_to_fp<C, const N_LIMBS: usize>(limbs: &[C::ScalarExt; N_LIMBS]) -> Fp
 where
     C: CurveAffine,

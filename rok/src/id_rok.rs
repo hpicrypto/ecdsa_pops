@@ -1,5 +1,5 @@
-//! A generic implementation of the identity [RoK] where the prover and verifier simply output their
-//! corresponding statements.
+//! A generic implementation of the identity [RoK] where the prover and verifier
+//! simply output their corresponding statements.
 
 use std::{error::Error, marker::PhantomData};
 

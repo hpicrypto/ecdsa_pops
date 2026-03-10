@@ -1,7 +1,9 @@
-//! Trait representing a non-interactive zero knowledge proof [Nizk] and blanket implementation from any
-//! [RoK] with [RoK::RelationTarget] being [RelTrivial]
+//! Trait representing a non-interactive zero knowledge proof [Nizk] and blanket
+//! implementation from any [RoK] with [RoK::RelationTarget] being [RelTrivial]
 
-// TODO: Make a trait for the trivial relation and a nizk implementation from any composition of roks that leads to a relation that implements the trivial relation
+// TODO: Make a trait for the trivial relation and a nizk implementation from
+// any composition of roks that leads to a relation that implements the trivial
+// relation
 
 use std::error::Error;
 
