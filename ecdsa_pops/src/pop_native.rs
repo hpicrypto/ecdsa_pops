@@ -135,7 +135,8 @@ impl PoPNativeNizk {
         let pederen_rok = PedersenRoK::<T256Affine> {
             ck: vec![ck_ci[0], ck_ci[2]],
         };
-        let rok = rok_compose!(
+        // return the composed RoK
+        rok_compose!(
             PopError;
                 (
                     (
@@ -146,8 +147,7 @@ impl PoPNativeNizk {
                 )
                 o
                 (bls_to_tom_rok)
-        );
-        rok
+        )
     }
 }
 
@@ -182,9 +182,7 @@ impl Nizk for PoPNativeNizk {
         r: &Self::Relation,
         proof: &Self::Proof,
     ) -> Result<(), Self::Error> {
-        let r = self.get_rok().reduce_statement(transcript, r, proof);
-        // TODO
-        r.unwrap();
+        self.get_rok().reduce_statement(transcript, r, proof)?;
         Ok(())
     }
 }
