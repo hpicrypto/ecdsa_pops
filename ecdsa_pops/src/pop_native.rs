@@ -71,25 +71,19 @@ impl PoPNativeNizk {
     }
 }
 
+type CSchnorrRoKT256128 = CSchnorrRoK<T256Affine, 16, 1>;
+type CircuitRoK128 = CircuitRoK<T256Affine, 16>;
+type PedersenRoKT256 = PedersenRoK<T256Affine>;
+
 /// The type of the composed rok to prove proof-of-possession
 ///
 /// We don't open the commitment used in the circuit since we can extract the
 /// opening from the previous proofs
 type PoPNativeComposedRoK = rok_compose_type!(
-PopError;
-            (
-                (
-                    // (RelCSchnorr x RelPedersen) ---> (RelPedersen x Trivial)
-                    (CircuitRoK<T256Affine,16>) x (PedersenRoK<T256Affine>)
-                )
-                o
-                // RelECDSA<T256> ---> (RelCSchnorr x RelPedersen)
-                (CSchnorrRoK<T256Affine,16,1>)
-            )
-            o
-            // RelECDSA<BLS> ---> RelECDSA<T256>
-            (BlsToTomRoK)
-    );
+    PopError;
+    // RelECDSA<BLS> ---> RelECDSA<T256> ---> (RelCSchnorr x RelPedersen) ---> (RelPedersen x Trivial)
+    ((CircuitRoK128 x PedersenRoKT256) o CSchnorrRoKT256128) o BlsToTomRoK
+);
 
 impl PoPNativeNizk {
     /// Given a label, produces parameters for [PoPNativeNizk]
@@ -138,15 +132,8 @@ impl PoPNativeNizk {
         // return the composed RoK
         rok_compose!(
             PopError;
-                (
-                    (
-                        (circuit_rok) x (pederen_rok)
-                    )
-                    o
-                    (cschnorr_rok)
-                )
-                o
-                (bls_to_tom_rok)
+            // RelECDSA<BLS> ---> RelECDSA<T256> ---> (RelCSchnorr x RelPedersen) ---> (RelPedersen x Trivial)
+            ((circuit_rok x pederen_rok) o cschnorr_rok) o bls_to_tom_rok
         )
     }
 }
