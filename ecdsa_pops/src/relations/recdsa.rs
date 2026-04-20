@@ -47,14 +47,28 @@ where
         pp: &RelECDSAParams<CCom, L>,
         w: &RelECDSAWitness<CCom, L>,
         i: usize,
-    ) -> Result<CCom, PopError> {
+    ) -> Result<(CCom, Option<CCom>), PopError> {
         // Q.x as limbs
-        let limbs = fp_to_scalars::<CCom, L>(&w.Q.x).unwrap();
+        let limbs_x = fp_to_scalars::<CCom, L>(&w.Q.x).unwrap();
 
-        // compute commitment
+        // compute commitment to the x coordinate
         let bases = [pp.Gs[i], pp.H];
-        let scalars = [limbs[i], w.rho[i]];
-        Ok(msm_function(&scalars, &bases).to_affine())
+        let scalars = [limbs_x[i], w.rhox[i]];
+        let Cx = msm_function(&scalars, &bases).to_affine();
+
+        // compute commitment to the y coordinate if it exists
+        let Cy = if w.rhoy().is_some() {
+            // Q.y as limbs
+            let limbs_y = fp_to_scalars::<CCom, L>(&w.Q.y).unwrap();
+
+            // compute commitment
+            let bases = [pp.Gs[i], pp.H];
+            let scalars = [limbs_y[i], w.rhoy.unwrap()[i]];
+            Some(msm_function(&scalars, &bases).to_affine())
+        } else {
+            None
+        };
+        Ok((Cx, Cy))
     }
 }
 
@@ -112,7 +126,9 @@ where
         PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
 {
     /// L commitments to Qx, each corresponding to a limb
-    C: [CCom; L],
+    Cx: [CCom; L],
+    /// L commitments to Qy, each corresponding to a limb. This is omitted in some protocols for efficiency
+    Cy: Option<[CCom; L]>,
     /// Signature part K
     K: Secp256r1Affine,
     /// A message in [Fq]
@@ -126,13 +142,18 @@ where
         PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
 {
     /// Create a [RelECDSAStatement] from parts
-    pub fn new(C: [CCom; L], m: Fq, K: Secp256r1Affine) -> Self {
-        RelECDSAStatement { C, m, K }
+    pub fn new(Cx: [CCom; L], Cy: Option<[CCom; L]>, m: Fq, K: Secp256r1Affine) -> Self {
+        RelECDSAStatement { Cx, Cy, m, K }
     }
 
     /// Returns the commitments to the limbs of Qx.
-    pub fn c(&self) -> &[CCom; L] {
-        &self.C
+    pub fn cx(&self) -> &[CCom; L] {
+        &self.Cx
+    }
+
+    /// Returns the commitments to the limbs of Qx.
+    pub fn cy(&self) -> &Option<[CCom; L]> {
+        &self.Cy
     }
 
     /// Returns the signature component K.
@@ -160,8 +181,10 @@ where
     Q: Secp256r1Affine,
     /// the hidden signature part
     z: Fq,
-    /// the commitment openings, one per commitment
-    rho: [CCom::ScalarExt; L],
+    /// the commitment openings for the x coordinate, one per commitment
+    rhox: [CCom::ScalarExt; L],
+    /// the commitment openings for the y coordinate, one per commitment. This is omitted in some protocols for efficiency
+    rhoy: Option<[CCom::ScalarExt; L]>,
 }
 
 impl<CCom, const L: usize> RelECDSAWitness<CCom, L>
@@ -171,8 +194,13 @@ where
         PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
 {
     /// Create [RelECDSAWitness] from parts
-    pub fn new(Q: Secp256r1Affine, z: Fq, rho: [CCom::ScalarExt; L]) -> Self {
-        RelECDSAWitness { Q, z, rho }
+    pub fn new(
+        Q: Secp256r1Affine,
+        z: Fq,
+        rhox: [CCom::ScalarExt; L],
+        rhoy: Option<[CCom::ScalarExt; L]>,
+    ) -> Self {
+        RelECDSAWitness { Q, z, rhox, rhoy }
     }
 
     /// Returns the ECDSA public key.
@@ -185,9 +213,13 @@ where
         &self.z
     }
 
-    /// Returns the commitment opening randomness values.
-    pub fn rho(&self) -> &[CCom::ScalarExt; L] {
-        &self.rho
+    /// Returns the commitment opening randomness values for the x coordinate.
+    pub fn rhox(&self) -> &[CCom::ScalarExt; L] {
+        &self.rhox
+    }
+    /// Returns the commitment opening randomness values for the (optional) y coordinate.
+    pub fn rhoy(&self) -> &Option<[CCom::ScalarExt; L]> {
+        &self.rhoy
     }
 }
 
@@ -226,11 +258,21 @@ where
     fn in_relation(&self) -> Result<(), PopError> {
         let w = self.w.as_ref().ok_or(PopError::MissingWitness(Self::label()))?;
 
-        // 1. C_i = Commit(ck, Q.x_i; rho_i) for all i
-        let b1 =
-            self.x.C.iter().enumerate().all(|(i, C)| {
-                RelECDSA::<CCom, L>::create_commitment(&self.pp, w, i).unwrap() == *C
-            });
+        // 1x. Cx_i = Commit(ck, Q.x_i; rhox_i) for all i
+        let b1x = self.x.Cx.iter().enumerate().all(|(i, Cx)| {
+            RelECDSA::<CCom, L>::create_commitment(&self.pp, w, i).unwrap().0 == *Cx
+        });
+        // 1y. check also the y coordinate if it exists
+        let b1y = match (w.rhoy, self.x.Cy) {
+            // ignore if it does not exists
+            (None, None) => true,
+            // if it exists check the commitments
+            (Some(_rhoy), Some(Cy)) => Cy.iter().enumerate().all(|(i, Cy)| {
+                RelECDSA::<CCom, L>::create_commitment(&self.pp, w, i).unwrap().1.unwrap() == *Cy
+            }),
+            // this should never happen normally
+            (_, _) => false,
+        };
 
         // 2. ECDSA signature verifies
         let sigma = ECDSASignatureConverted {
@@ -238,7 +280,7 @@ where
             z: w.z,
         };
         let b2 = self.pp.ecdsa.verify_prehashed_converted(&w.Q, &self.x.m, &sigma).is_ok();
-        if b1 && b2 {
+        if b1x && b1y && b2 {
             Ok(())
         } else {
             Err(PopError::InvalidStatementWitness(Self::label()))

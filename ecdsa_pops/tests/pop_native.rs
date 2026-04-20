@@ -39,14 +39,14 @@ fn pop_native_nizk() {
         .try_into()
         .unwrap();
     // create witness
-    let w = RelECDSAWitness::new(pk, sigma_converted.z, rho);
+    let w = RelECDSAWitness::new(pk, sigma_converted.z, rho, None);
     // create the commitment to the public key
     let coms = (0..2)
-        .map(|i| RelECDSA::<G1Affine, 2>::create_commitment(&pp, &w, i).unwrap())
+        .map(|i| RelECDSA::<G1Affine, 2>::create_commitment(&pp, &w, i).unwrap().0)
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
-    let x = RelECDSAStatement::new(coms, m, sigma_converted.K);
+    let x = RelECDSAStatement::new(coms, None, m, sigma_converted.K);
 
     let r_prover = RelECDSA::new(pp, x, Some(w));
 

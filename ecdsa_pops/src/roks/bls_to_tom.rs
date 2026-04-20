@@ -94,18 +94,18 @@ impl BlsToTomRoK {
 
         // create the two dleq statements
         let x_low = RelDLEQStatement::<G1Affine, T256Affine> {
-            C1: x_ecdsa.c()[0],
+            C1: x_ecdsa.cx()[0],
             C2: C_t256_limb_low.into(),
         };
         let x_high = RelDLEQStatement::<G1Affine, T256Affine> {
-            C1: x_ecdsa.c()[1],
+            C1: x_ecdsa.cx()[1],
             C2: C_t256_limb_high.into(),
         };
         let w_low = RelDLEQWitness::<G1Affine, T256Affine> {
             // low limb
             m: ff_to_big(&Qx_as_limbs_bls[0]),
             // randomness of bls commitment
-            r1: w_ecdsa.rho()[0],
+            r1: w_ecdsa.rhox()[0],
             // randomness of t256 commitment
             r2: rho_t256_low_limb,
         };
@@ -113,7 +113,7 @@ impl BlsToTomRoK {
             // high limb
             m: ff_to_big(&Qx_as_limbs_bls[1]),
             // randomness of bls commitment
-            r1: w_ecdsa.rho()[1],
+            r1: w_ecdsa.rhox()[1],
             // randomness of t256 commitment
             r2: rho_t256_high_limb,
         };
@@ -130,11 +130,11 @@ impl BlsToTomRoK {
         proof: &BlsToTomRoKProof,
     ) -> [RelDLEQ<G1Affine, T256Affine>; 2] {
         let x_low = RelDLEQStatement::<G1Affine, T256Affine> {
-            C1: x_ecdsa.c()[0],
+            C1: x_ecdsa.cx()[0],
             C2: proof.C_t256_low,
         };
         let x_high = RelDLEQStatement::<G1Affine, T256Affine> {
-            C1: x_ecdsa.c()[1],
+            C1: x_ecdsa.cx()[1],
             C2: proof.C_t256_high,
         };
         let r_low = RelDLEQ::new(self.dleq_rok_low_limb.clone().into(), x_low, None);
@@ -197,8 +197,8 @@ impl RoK for BlsToTomRoK {
             );
         });
         // /// Commitment to Qx
-        transcript.append_point(b"BLS commitment to low limb", &rs.statement().c()[0]);
-        transcript.append_point(b"BLS commitment to high limb", &rs.statement().c()[1]);
+        transcript.append_point(b"BLS commitment to low limb", &rs.statement().cx()[0]);
+        transcript.append_point(b"BLS commitment to high limb", &rs.statement().cx()[1]);
         transcript.append_scalar(b"signed message", rs.statement().m());
         transcript.append_point(b"ECDSA K", rs.statement().k());
     }
@@ -239,8 +239,13 @@ impl RoK for BlsToTomRoK {
         let G_t256 = self.dleq_rok_low_limb.ck2[0];
         let H_t256 = self.dleq_rok_low_limb.ck2[1];
         let pp = RelECDSAParams::new([G_t256], H_t256, *rs.params().ecdsa());
-        let x = RelECDSAStatement::new([C_t256.into()], *rs.statement().m(), *rs.statement().k());
-        let w = RelECDSAWitness::new(*witness.q(), *witness.z(), rho);
+        let x = RelECDSAStatement::new(
+            [C_t256.into()],
+            None,
+            *rs.statement().m(),
+            *rs.statement().k(),
+        );
+        let w = RelECDSAWitness::new(*witness.q(), *witness.z(), rho, None);
 
         let rt = RelECDSA::new(pp, x, Some(w));
         let proof = BlsToTomRoKProof {
@@ -277,7 +282,12 @@ impl RoK for BlsToTomRoK {
         let G_t256 = self.dleq_rok_low_limb.ck2[0];
         let H_t256 = self.dleq_rok_low_limb.ck2[1];
         let pp = RelECDSAParams::new([G_t256], H_t256, *rs.params().ecdsa());
-        let x = RelECDSAStatement::new([C_t256.into()], *rs.statement().m(), *rs.statement().k());
+        let x = RelECDSAStatement::new(
+            [C_t256.into()],
+            None,
+            *rs.statement().m(),
+            *rs.statement().k(),
+        );
         let rt = RelECDSA::new(pp, x, None);
         end_timer!(t);
         Ok(rt)

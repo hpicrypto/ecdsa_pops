@@ -119,28 +119,39 @@ where
     let sigma_converted = ecdsa.convert(&pk, &m, &sigma);
 
     // sample randomness for the commitments
-    let rho = (0..L)
+    let rhox = (0..L)
+        .map(|_| <CCom::ScalarExt as Field>::random(OsRng))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    let rhoy = (0..L)
         .map(|_| <CCom::ScalarExt as Field>::random(OsRng))
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
 
-    let w = RelECDSAWitness::new(pk, sigma_converted.z, rho);
+    let w = RelECDSAWitness::new(pk, sigma_converted.z, rhox, Some(rhoy));
 
     // compute a commitment to pk.x
-    let C = (0..L)
-        .map(|i| RelECDSA::<CCom, L>::create_commitment(&pp, &w, i).unwrap())
+    let Cx = (0..L)
+        .map(|i| RelECDSA::<CCom, L>::create_commitment(&pp, &w, i).unwrap().0)
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    // compute a commitment to pk.y
+    let Cy = (0..L)
+        .map(|i| RelECDSA::<CCom, L>::create_commitment(&pp, &w, i).unwrap().1.unwrap())
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
 
     // compute the statement
-    let x = RelECDSAStatement::new(C, m, sigma_converted.K);
+    let x = RelECDSAStatement::new(Cx, Some(Cy), m, sigma_converted.K);
 
     RelECDSA::new(pp, x, Some(w))
 }
 
-// sample a random instance ofRelDLEQ] using 2 limbs
+// sample a random instance of [RelDLEQ] using 2 limbs
 pub(crate) fn sample_random_dleq_instance() -> RelDLEQ<G1Affine, T256Affine> {
     // sample two commitment key
     let ck1 = pedersen_key::<G1Affine>(2, "sample_random_dleq_instance");
@@ -182,14 +193,14 @@ where
         .unwrap()
         .to_vec();
     // sum the randomness used for the L commitments to "compact" them
-    w_pedersen.push(recdsa.witness().as_ref().unwrap().rho().iter().sum());
+    w_pedersen.push(recdsa.witness().as_ref().unwrap().rhox().iter().sum());
     let mut ck_combined = recdsa.params().gs().to_vec();
     ck_combined.push(*recdsa.params().h());
 
     // sum the L commitments
     let C_combined = recdsa
         .statement()
-        .c()
+        .cx()
         .iter()
         .fold(CCom::identity().to_curve(), |acc, &C| acc + C);
     let (pp, x, w) = (

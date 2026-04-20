@@ -134,14 +134,14 @@ where
         let T = rs.statement().k() * proof.response - P * (rs.statement().m() * Kx_inv);
 
         // compute compressed commitment to Q
-        let C_Q = rs.statement().c().iter().fold(C::identity().to_curve(), |acc, &com| acc + com);
+        let C_Q = rs.statement().cx().iter().fold(C::identity().to_curve(), |acc, &com| acc + com);
         // compute compressed commitment to R
         let C = (C_Q + proof.C_R).into();
         let cschnorr_x = RelCSchnorrStatement::<C, SEC_PARAM_BYTES> { C, T: T.into(), c };
 
         let cschnorr_w = witness.map(|(w, rho_R, R)| {
             // the combined randomness for C_Q
-            let rho_Q: C::ScalarExt = w.rho().iter().sum();
+            let rho_Q: C::ScalarExt = w.rhox().iter().sum();
             RelCSchnorrWitness::new(R, *w.q(), rho_Q + rho_R)
         });
 
@@ -198,7 +198,7 @@ where
         transcript.append_point(b"ECDSA generator", &rs.params().ecdsa().pp);
 
         // append statement C, K, m
-        transcript.append_point(b"statement_C", &rs.statement().c()[0]);
+        transcript.append_point(b"statement_C", &rs.statement().cx()[0]);
         transcript.append_point(b"statement_K", rs.statement().k());
         transcript.append_scalar(b"statement_m", rs.statement().m());
     }
