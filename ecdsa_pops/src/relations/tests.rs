@@ -20,7 +20,12 @@ use crate::{
         recdsa::{RelECDSA, RelECDSAParams, RelECDSAStatement, RelECDSAWitness},
         rpedersen::{RelPedersen, RelPedersenParams, RelPedersenStatement, RelPedersenWitness},
     },
-    utils::{ecdsa::ECDSA, fp_to_scalars, Fq, Fr},
+    utils::{ecdsa::ECDSA, fp_to_fr, fp_to_scalars, Fq, Fr},
+};
+
+use super::{
+    rpa::{RelPA, RelPAParams, RelPAStatement, RelPAWitness},
+    rsm::{RelSM, RelSMParams, RelSMStatement, RelSMWitness},
 };
 
 /// Creates a random pedersen commitment key of size L
@@ -151,6 +156,62 @@ where
     RelECDSA::new(pp, x, Some(w))
 }
 
+// sample a random instance of [RelPA]
+pub(crate) fn sample_random_pa_instance() -> RelPA {
+    // sample the commitment key
+    let ck = pedersen_key::<T256Affine>(2, "sample_random_pa_instance");
+
+    // sample the witness
+    let P0 = Secp256r1Affine::random(OsRng);
+    let P1 = Secp256r1Affine::random(OsRng);
+    let P2 = (P0 + P1).to_affine();
+    let rho0 = (Fr::random(OsRng), Fr::random(OsRng));
+    let rho1 = (Fr::random(OsRng), Fr::random(OsRng));
+    let rho2 = (Fr::random(OsRng), Fr::random(OsRng));
+
+    // compute the commitments
+    let C0 = (
+        msm_function(&[fp_to_fr(&P0.x), rho0.0], &ck).into(),
+        msm_function(&[fp_to_fr(&P0.y), rho0.1], &ck).into(),
+    );
+    let C1 = (
+        msm_function(&[fp_to_fr(&P1.x), rho1.0], &ck).into(),
+        msm_function(&[fp_to_fr(&P1.y), rho1.1], &ck).into(),
+    );
+    let C2 = (
+        msm_function(&[fp_to_fr(&P2.x), rho2.0], &ck).into(),
+        msm_function(&[fp_to_fr(&P2.y), rho2.1], &ck).into(),
+    );
+    let pp = RelPAParams::new(ck[0], ck[1]);
+    let x = RelPAStatement::new([C0, C1, C2]);
+    let w = RelPAWitness::new([P0, P1, P2], [rho0, rho1, rho2]);
+
+    RelPA::new(pp, x, Some(w))
+}
+
+// sample a random instance of [RelSM]
+pub(crate) fn sample_random_sm_instance() -> RelSM {
+    // sample the commitment key
+    let ck = pedersen_key::<T256Affine>(2, "sample_random_pa_instance");
+
+    // sample the witness
+    let G = Secp256r1Affine::random(OsRng);
+    let z = Fq::random(OsRng);
+    let P: Secp256r1Affine = (G * z).into();
+    let rho = (Fr::random(OsRng), Fr::random(OsRng));
+
+    // compute the commitment
+    let C = (
+        msm_function(&[fp_to_fr(&P.x), rho.0], &ck).into(),
+        msm_function(&[fp_to_fr(&P.y), rho.1], &ck).into(),
+    );
+    let pp = RelSMParams::new(ck[0], ck[1]);
+    let x = RelSMStatement::new(C, G);
+    let w = RelSMWitness::new(P, rho, z);
+
+    RelSM::new(pp, x, Some(w))
+}
+
 // sample a random instance of [RelDLEQ] using 2 limbs
 pub(crate) fn sample_random_dleq_instance() -> RelDLEQ<G1Affine, T256Affine> {
     // sample two commitment key
@@ -228,6 +289,16 @@ fn test_relations() {
     let rdleq = sample_random_dleq_instance();
     assert!(rdleq.in_relation().is_ok());
     let result = rdleq.in_relation();
+    assert!(result.is_ok(), "not in relation: {:?}", result);
+
+    // pa
+    let rpa = sample_random_pa_instance();
+    let result = rpa.in_relation();
+    assert!(result.is_ok(), "not in relation: {:?}", result);
+
+    // sm
+    let rsm = sample_random_sm_instance();
+    let result = rsm.in_relation();
     assert!(result.is_ok(), "not in relation: {:?}", result);
 }
 

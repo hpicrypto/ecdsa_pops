@@ -30,4 +30,7 @@ pub enum PopError {
     /// Try to access a witness that does not exist
     #[error("Missing witness")]
     MissingWitness(String),
+    /// Try to access an array on a bad index
+    #[error("Index out of bounds")]
+    IndexOutOfBounds(String),
 }

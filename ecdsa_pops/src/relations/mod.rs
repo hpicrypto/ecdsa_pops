@@ -12,5 +12,11 @@ pub mod recdsa;
 /// the knowledge of pedersen commitment opening
 pub(crate) mod rpedersen;
 
+/// point addition over p256 committed points
+pub(crate) mod rpa;
+
+/// scalar multiplication over p256 with committed base
+pub(crate) mod rsm;
+
 #[cfg(test)]
 pub(crate) mod tests;
