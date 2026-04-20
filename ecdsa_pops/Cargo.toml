@@ -19,6 +19,7 @@ merlin = { workspace = true }
 num-bigint = { workspace = true }
 num-traits = { workspace = true }
 ark-std = { workspace = true }
+ark-ff = { workspace = true }
 serde = { workspace = true }
 bincode = { workspace = true }
 rand_core = { workspace = true }
@@ -27,6 +28,13 @@ r1csipa = { path = "../r1csipa/" }
 rok = { path = "../rok/" }
 
 halo2curves = { workspace = true }
+
+# Need for equality across groups
+ark-secp256r1 = { version = "^0.4.0", default-features = false }
+
+
+equality_across_groups = {git = "https://github.com/alexandroszacharakis8/docknetwork-crypto"}
+dock_crypto_utils = {git = "https://github.com/alexandroszacharakis8/docknetwork-crypto"}
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [
