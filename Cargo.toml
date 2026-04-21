@@ -18,6 +18,8 @@ num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2.14"
 ark-std = "0.4.0"
 ark-ff = { version = "^0.4.1", default-features = false }
+ark-ec = { version = "^0.4.1", default-features = false }
+ark-serialize = { version = "^0.4.1", default-features = false, features = [ "derive" ] }
 rand_core = { version = "0.6", default-features = false }
 
 halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [

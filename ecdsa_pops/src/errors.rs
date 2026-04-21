@@ -3,6 +3,7 @@
 // TODO: Better error handling
 
 use bincode::Error;
+use equality_across_groups::error::Error as DNError;
 use r1csipa::ProofError;
 use thiserror::Error;
 
@@ -33,4 +34,13 @@ pub enum PopError {
     /// Try to access an array on a bad index
     #[error("Index out of bounds")]
     IndexOutOfBounds(String),
+    /// Circuit proof causes an error
+    #[error("DN error")]
+    DNError(DNError),
+}
+
+impl From<DNError> for PopError {
+    fn from(e: DNError) -> Self {
+        PopError::DNError(e)
+    }
 }

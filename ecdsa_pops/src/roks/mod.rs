@@ -5,3 +5,4 @@ pub(crate) mod circuit_rok;
 pub(crate) mod cschnorr_rok;
 pub(crate) mod dleq_rok;
 pub(crate) mod pedersen_rok;
+pub(crate) mod sm_rok;
