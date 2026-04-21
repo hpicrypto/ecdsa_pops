@@ -127,7 +127,8 @@ where
 {
     /// L commitments to Qx, each corresponding to a limb
     Cx: [CCom; L],
-    /// L commitments to Qy, each corresponding to a limb. This is omitted in some protocols for efficiency
+    /// L commitments to Qy, each corresponding to a limb. This is omitted in
+    /// some protocols for efficiency
     Cy: Option<[CCom; L]>,
     /// Signature part K
     K: Secp256r1Affine,
@@ -183,7 +184,8 @@ where
     z: Fq,
     /// the commitment openings for the x coordinate, one per commitment
     rhox: [CCom::ScalarExt; L],
-    /// the commitment openings for the y coordinate, one per commitment. This is omitted in some protocols for efficiency
+    /// the commitment openings for the y coordinate, one per commitment. This
+    /// is omitted in some protocols for efficiency
     rhoy: Option<[CCom::ScalarExt; L]>,
 }
 
@@ -217,7 +219,8 @@ where
     pub fn rhox(&self) -> &[CCom::ScalarExt; L] {
         &self.rhox
     }
-    /// Returns the commitment opening randomness values for the (optional) y coordinate.
+    /// Returns the commitment opening randomness values for the (optional) y
+    /// coordinate.
     pub fn rhoy(&self) -> &Option<[CCom::ScalarExt; L]> {
         &self.rhoy
     }

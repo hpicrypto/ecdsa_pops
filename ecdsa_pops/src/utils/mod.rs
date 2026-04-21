@@ -1,8 +1,7 @@
 //! Helper types and functions for implementing PoPs
 use ark_ff::{One, PrimeField as ArkPrimeField};
 use ark_secp256r1::{Affine as Secp256r1AffineArk, Fq as FpArk, Fr as FqArk};
-use equality_across_groups::tom256::Affine as T256AffineArk;
-use equality_across_groups::tom256::{Fq as FtArk, Fr as FrArk};
+use equality_across_groups::tom256::{Affine as T256AffineArk, Fq as FtArk, Fr as FrArk};
 use ff::{Field, PrimeField};
 use halo2curves::{secp256r1::Secp256r1Affine, t256::T256Affine, CurveAffine};
 use num_bigint::BigUint;
@@ -64,13 +63,15 @@ pub(crate) fn ft_to_arkft(a: &Ft) -> FtArk {
     <FtArk as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
 }
 
-/// Helper function to convert halo2 [Secp256r1Affine] elements to [Secp256r1AffineArk] elements
+/// Helper function to convert halo2 [Secp256r1Affine] elements to
+/// [Secp256r1AffineArk] elements
 pub(crate) fn p256_to_arkp256(P: &Secp256r1Affine) -> Secp256r1AffineArk {
     let (x, y) = (fp_to_arkfp(&P.x), fp_to_arkfp(&P.y));
     Secp256r1AffineArk::new(x, y)
 }
 
-/// Helper function to convert halo2 [Secp256r1Affine] elements to [Secp256r1AffineArk] elements
+/// Helper function to convert halo2 [Secp256r1Affine] elements to
+/// [Secp256r1AffineArk] elements
 pub(crate) fn t256_to_arkt256(P: &T256Affine) -> T256AffineArk {
     let (x, y) = (ft_to_arkft(&P.x), ft_to_arkft(&P.y));
     T256AffineArk::new(x, y)

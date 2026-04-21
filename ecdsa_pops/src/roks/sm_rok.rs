@@ -1,28 +1,39 @@
 //! SM RoK for reducing [RelSM] -> [RelTrivial])
 //!
-//! The implementation is based on a modified version of [Docknetwork Crypto](github.com/docknetwork/crypto).
+//! The implementation is based on a modified version of [Docknetwork
+//! Crypto](github.com/docknetwork/crypto).
 //!
-//! TODO: Remove the docknetwork dependency. The implementation mixes ark/halo2curves and the current transcript with docknetwork transcript which is error prone.
+//! TODO: Remove the docknetwork dependency. The implementation mixes
+//! ark/halo2curves and the current transcript with docknetwork transcript which
+//! is error prone.
 
 use ark_ec::CurveGroup;
 use ark_secp256r1::Config as SecpConfig;
 use ark_std::{end_timer, start_timer};
-use dock_crypto_utils::commitment::PedersenCommitmentKey;
-use dock_crypto_utils::transcript::{new_merlin_transcript, Transcript as DockTranscript};
-use equality_across_groups::ec::commitments::{PointCommitment, PointCommitmentWithOpening};
-use equality_across_groups::ec::sw_scalar_mult_without_commitment::{
-    ScalarMultiplicationWCProof, ScalarMultiplicationWCProtocol,
+use dock_crypto_utils::{
+    commitment::PedersenCommitmentKey,
+    transcript::{new_merlin_transcript, Transcript as DockTranscript},
 };
-use equality_across_groups::tom256::{Affine as T256Ark, Config as TomConfig};
+use equality_across_groups::{
+    ec::{
+        commitments::{PointCommitment, PointCommitmentWithOpening},
+        sw_scalar_mult_without_commitment::{
+            ScalarMultiplicationWCProof, ScalarMultiplicationWCProtocol,
+        },
+    },
+    tom256::{Affine as T256Ark, Config as TomConfig},
+};
 use halo2curves::t256::T256Affine;
 use merlin::Transcript;
 use r1csipa::TranscriptProtocol;
 use rand_core::{CryptoRng, RngCore};
 use rok::{RelTrivial, Relation, RoK};
 
-use crate::errors::PopError;
-use crate::relations::rsm::RelSM;
-use crate::utils::{fq_to_arkfq, fr_to_arkfr, p256_to_arkp256, t256_to_arkt256, Fq};
+use crate::{
+    errors::PopError,
+    relations::rsm::RelSM,
+    utils::{fq_to_arkfq, fr_to_arkfr, p256_to_arkp256, t256_to_arkt256, Fq},
+};
 
 /// SM RoK for reducing [RelSM] -> [RelTrivial])
 pub(crate) struct SMProof {

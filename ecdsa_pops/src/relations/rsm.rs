@@ -1,8 +1,7 @@
 //! RelSM:
 //!     - params: pedersen commitment key in T256 Curve
 //!     - statement Cx,Cy \in T256 Curve, G \in P256 Curve
-//!     - witness: H \in P256 Curve, z \in P256::Scalar
-//!                rhox, rhoy
+//!     - witness: H \in P256 Curve, z \in P256::Scalar rhox, rhoy
 //!     s.t.
 //!     1. Cx = Commit(ck, Hx; rhox)
 //!     2. Cy = Commit(ck, Hy; rhoy)

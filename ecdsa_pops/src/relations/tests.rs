@@ -11,6 +11,10 @@ use r1csipa::msm_function;
 use rand_core::{OsRng, RngCore};
 use rok::{Relation, RelationProduct};
 
+use super::{
+    rpa::{RelPA, RelPAParams, RelPAStatement, RelPAWitness},
+    rsm::{RelSM, RelSMParams, RelSMStatement, RelSMWitness},
+};
 use crate::{
     circuit::utils::big_to_ff,
     errors::PopError,
@@ -21,11 +25,6 @@ use crate::{
         rpedersen::{RelPedersen, RelPedersenParams, RelPedersenStatement, RelPedersenWitness},
     },
     utils::{ecdsa::ECDSA, fp_to_fr, fp_to_scalars, Fq, Fr},
-};
-
-use super::{
-    rpa::{RelPA, RelPAParams, RelPAStatement, RelPAWitness},
-    rsm::{RelSM, RelSMParams, RelSMStatement, RelSMWitness},
 };
 
 /// Creates a random pedersen commitment key of size L

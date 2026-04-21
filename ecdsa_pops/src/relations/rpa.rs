@@ -1,9 +1,8 @@
 //! RelPA:
 //!     - params: pedersen commitment key in T256 Curve
 //!     - statement C1x, C2x, C3x, C1y, C2y, C3y \in T256 Curve
-//!     - witness: P1, P2, P3 \in P256 Curve
-//!                rho1x, rho2x, rho3x in P256 base field
-//!                rho1y, rho2y, rho3y in P256 base field
+//!     - witness: P1, P2, P3 \in P256 Curve rho1x, rho2x, rho3x in P256 base
+//!       field rho1y, rho2y, rho3y in P256 base field
 //!     s.t.
 //!     1. Cix = Commit(ck, Pi.x; rhoix)
 //!     2. Ciy = Commit(ck, Pi.y; rhoiy)
