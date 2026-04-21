@@ -19,7 +19,7 @@ use rok::{RelTrivial, Relation, RoK};
 
 use crate::errors::PopError;
 use crate::relations::rpa::RelPA;
-use crate::utils::{fq_to_arkfq, fr_to_arkfr, p256_to_arkp256, t256_to_arkt256, Fq};
+use crate::utils::{fr_to_arkfr, p256_to_arkp256, t256_to_arkt256};
 
 /// PA RoK for reducing [RelPA] -> [RelTrivial])
 pub struct PAProof {

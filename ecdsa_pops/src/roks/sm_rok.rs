@@ -25,13 +25,13 @@ use crate::relations::rsm::RelSM;
 use crate::utils::{fq_to_arkfq, fr_to_arkfr, p256_to_arkp256, t256_to_arkt256, Fq};
 
 /// SM RoK for reducing [RelSM] -> [RelTrivial])
-pub struct SMProof {
+pub(crate) struct SMProof {
     proof: ScalarMultiplicationWCProof<SecpConfig, TomConfig, 128>,
 }
 
 #[derive(Clone)]
 /// The SMRoK
-pub struct SMRoK {
+pub(crate) struct SMRoK {
     /// Generators for committing to limbs
     G: T256Affine,
     /// Generator for blinding commitments (common for all)

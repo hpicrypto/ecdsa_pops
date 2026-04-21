@@ -24,7 +24,7 @@ pub type Fp = <Secp256r1Affine as CurveAffine>::Base;
 pub type Fq = <Secp256r1Affine as CurveAffine>::ScalarExt;
 /// The base field of [T256r1Affine] (which is the same as the scalar field
 /// of [T256Affine])
-pub(crate) type Ft = <T256Affine as CurveAffine>::Base;
+type Ft = <T256Affine as CurveAffine>::Base;
 
 /// Helper function to convert P256 base [Fp] to T256 Scalar [Fr]
 pub(crate) fn fp_to_fr(a: &Fp) -> Fr {

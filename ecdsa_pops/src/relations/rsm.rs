@@ -37,17 +37,17 @@ pub struct RelSMParams {
 
 impl RelSMParams {
     /// Create [RelSMParams] from parts
-    pub fn new(G: T256Affine, H: T256Affine) -> Self {
+    pub(crate) fn new(G: T256Affine, H: T256Affine) -> Self {
         RelSMParams { G, H }
     }
 
     /// Returns the commitment generator.
-    pub fn g(&self) -> &T256Affine {
+    pub(crate) fn g(&self) -> &T256Affine {
         &self.G
     }
 
     /// Returns the blinding generator.
-    pub fn h(&self) -> &T256Affine {
+    pub(crate) fn h(&self) -> &T256Affine {
         &self.H
     }
 }
@@ -63,17 +63,17 @@ pub struct RelSMStatement {
 
 impl RelSMStatement {
     /// Create a [RelSMStatement] from parts
-    pub fn new(C: (T256Affine, T256Affine), G: Secp256r1Affine) -> Self {
+    pub(crate) fn new(C: (T256Affine, T256Affine), G: Secp256r1Affine) -> Self {
         RelSMStatement { C, G }
     }
 
     /// Returns the point commitment.
-    pub fn c(&self) -> &(T256Affine, T256Affine) {
+    pub(crate) fn c(&self) -> &(T256Affine, T256Affine) {
         &self.C
     }
 
     /// Returns the generator.
-    pub fn g(&self) -> &Secp256r1Affine {
+    pub(crate) fn g(&self) -> &Secp256r1Affine {
         &self.G
     }
 }
@@ -94,7 +94,7 @@ pub struct RelSMWitness {
 
 impl RelSMWitness {
     /// Create [RelPAWitness] from parts
-    pub fn new(
+    pub(crate) fn new(
         P: Secp256r1Affine,
         rho: (
             <T256Affine as CurveAffine>::ScalarExt,
@@ -106,12 +106,12 @@ impl RelSMWitness {
     }
 
     /// Returns the point.
-    pub fn p(&self) -> &Secp256r1Affine {
+    pub(crate) fn p(&self) -> &Secp256r1Affine {
         &self.P
     }
 
     /// Returns the commitment randomness.
-    pub fn rho(
+    pub(crate) fn rho(
         &self,
     ) -> &(
         <T256Affine as CurveAffine>::ScalarExt,
@@ -121,7 +121,7 @@ impl RelSMWitness {
     }
 
     /// Returns the scalar.
-    pub fn scalar(&self) -> &Fq {
+    pub(crate) fn scalar(&self) -> &Fq {
         &self.z
     }
 }

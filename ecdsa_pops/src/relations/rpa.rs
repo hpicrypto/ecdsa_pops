@@ -34,17 +34,17 @@ pub struct RelPAParams {
 
 impl RelPAParams {
     /// Create [RelPAParams] from parts
-    pub fn new(G: T256Affine, H: T256Affine) -> Self {
+    pub(crate) fn new(G: T256Affine, H: T256Affine) -> Self {
         RelPAParams { G, H }
     }
 
     /// Returns the commitment generator.
-    pub fn g(&self) -> &T256Affine {
+    pub(crate) fn g(&self) -> &T256Affine {
         &self.G
     }
 
     /// Returns the blinding generator.
-    pub fn h(&self) -> &T256Affine {
+    pub(crate) fn h(&self) -> &T256Affine {
         &self.H
     }
 }
@@ -58,12 +58,12 @@ pub struct RelPAStatement {
 
 impl RelPAStatement {
     /// Create a [RelPAStatement] from parts
-    pub fn new(Cs: [(T256Affine, T256Affine); 3]) -> Self {
+    pub(crate) fn new(Cs: [(T256Affine, T256Affine); 3]) -> Self {
         RelPAStatement { Cs }
     }
 
     /// Returns the ith commitment.
-    pub fn c(&self, i: usize) -> Result<&(T256Affine, T256Affine), PopError> {
+    pub(crate) fn c(&self, i: usize) -> Result<&(T256Affine, T256Affine), PopError> {
         if i < 3 {
             Ok(&self.Cs[i])
         } else {
@@ -89,7 +89,7 @@ pub struct RelPAWitness {
 
 impl RelPAWitness {
     /// Create [RelPAWitness] from parts
-    pub fn new(
+    pub(crate) fn new(
         Ps: [Secp256r1Affine; 3],
         rhos: [(
             <T256Affine as CurveAffine>::ScalarExt,
@@ -100,12 +100,12 @@ impl RelPAWitness {
     }
 
     /// Returns the points.
-    pub fn ps(&self) -> &[Secp256r1Affine; 3] {
+    pub(crate) fn ps(&self) -> &[Secp256r1Affine; 3] {
         &self.Ps
     }
 
     /// Returns the commitment randomness.
-    pub fn rhos(
+    pub(crate) fn rhos(
         &self,
     ) -> &[(
         <T256Affine as CurveAffine>::ScalarExt,
