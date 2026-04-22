@@ -42,6 +42,14 @@ where
     CCom::ScalarExt:
         PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
 {
+    /// Remove the y coordinate commitment when non needed
+    pub fn remove_cy(&mut self) {
+        self.x.Cy = None;
+        if let Some(w) = &mut self.w {
+            w.rhoy = None
+        };
+    }
+
     /// Helper function that creates the commitment to the i-th limb
     pub fn create_commitment(
         pp: &RelECDSAParams<CCom, L>,

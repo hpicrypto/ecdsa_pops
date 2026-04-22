@@ -23,7 +23,7 @@ use crate::{
 /// A proof of equality produced by [DleqRoK].
 ///
 /// NOTE: Assumes the scalar fields of C1, C2 are represented in *little endian*
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct DLEQRoKProof<C1, C2>
 where
     C1: CurveAffine,

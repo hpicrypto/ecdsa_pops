@@ -189,10 +189,11 @@ mod tests {
         let nizk = PoPNativeNizk::new("test popnative");
 
         // sample a random statement
-        let r = sample_random_ecdsa_instance_with_key::<G1Affine, 2>(
+        let mut r = sample_random_ecdsa_instance_with_key::<G1Affine, 2>(
             [nizk.ck_bls, nizk.ck_bls],
             nizk.ck_bls_blinding,
         );
+        r.remove_cy();
         assert!(r.in_relation().is_ok());
 
         let mut transcript_prover = Transcript::new(b"pop native proof");
