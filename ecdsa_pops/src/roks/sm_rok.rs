@@ -9,6 +9,7 @@
 
 use ark_ec::CurveGroup;
 use ark_secp256r1::Config as SecpConfig;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{end_timer, start_timer};
 use dock_crypto_utils::{
     commitment::PedersenCommitmentKey,
@@ -23,11 +24,12 @@ use equality_across_groups::{
     },
     tom256::{Affine as T256Ark, Config as TomConfig},
 };
-use halo2curves::t256::T256Affine;
+use halo2curves::t256::{T256Affine, T256};
 use merlin::Transcript;
 use r1csipa::TranscriptProtocol;
 use rand_core::{CryptoRng, RngCore};
 use rok::{RelTrivial, Relation, RoK};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     errors::PopError,
@@ -36,17 +38,51 @@ use crate::{
 };
 
 /// SM RoK for reducing [RelSM] -> [RelTrivial])
-pub(crate) struct SMProof {
+pub struct SMProof {
     proof: ScalarMultiplicationWCProof<SecpConfig, TomConfig, 128>,
+}
+
+impl Serialize for SMProof {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut bytes = Vec::new();
+        self.proof.serialize_compressed(&mut bytes).map_err(serde::ser::Error::custom)?;
+        serializer.serialize_bytes(&bytes)
+    }
+}
+
+impl<'de> Deserialize<'de> for SMProof {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes: Vec<u8> = Vec::<u8>::deserialize(deserializer)?;
+
+        let proof =
+            ScalarMultiplicationWCProof::<SecpConfig, TomConfig, 128>::deserialize_compressed(
+                &*bytes,
+            )
+            .map_err(serde::de::Error::custom)?;
+
+        Ok(SMProof { proof })
+    }
 }
 
 #[derive(Clone)]
 /// The SMRoK
-pub(crate) struct SMRoK {
+pub struct SMRoK {
     /// Generators for committing to limbs
     G: T256Affine,
     /// Generator for blinding commitments (common for all)
     H: T256Affine,
+}
+
+impl SMRoK {
+    pub fn from_ck(ck: &[T256Affine; 2]) -> Self {
+        Self { G: ck[0], H: ck[1] }
+    }
 }
 
 impl RoK for SMRoK {

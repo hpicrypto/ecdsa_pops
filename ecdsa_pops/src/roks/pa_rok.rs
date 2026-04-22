@@ -8,6 +8,7 @@
 //! is error prone.
 
 use ark_secp256r1::Config as SecpConfig;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{end_timer, start_timer};
 use dock_crypto_utils::{
     commitment::PedersenCommitmentKey,
@@ -25,6 +26,7 @@ use merlin::Transcript;
 use r1csipa::TranscriptProtocol;
 use rand_core::{CryptoRng, RngCore};
 use rok::{RelTrivial, Relation, RoK};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     errors::PopError,
@@ -37,6 +39,31 @@ pub struct PAProof {
     proof: PointAdditionProof<SecpConfig, TomConfig>,
 }
 
+impl Serialize for PAProof {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut bytes = Vec::new();
+        self.proof.serialize_compressed(&mut bytes).map_err(serde::ser::Error::custom)?;
+        serializer.serialize_bytes(&bytes)
+    }
+}
+
+impl<'de> Deserialize<'de> for PAProof {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes: Vec<u8> = Vec::<u8>::deserialize(deserializer)?;
+
+        let proof = PointAdditionProof::<SecpConfig, TomConfig>::deserialize_compressed(&*bytes)
+            .map_err(serde::de::Error::custom)?;
+
+        Ok(PAProof { proof })
+    }
+}
+
 #[derive(Clone)]
 /// The PARoK
 pub struct PARoK {
@@ -44,6 +71,12 @@ pub struct PARoK {
     G: T256Affine,
     /// Generator for blinding commitments (common for all)
     H: T256Affine,
+}
+
+impl PARoK {
+    pub fn from_ck(ck: &[T256Affine; 2]) -> Self {
+        Self { G: ck[0], H: ck[1] }
+    }
 }
 
 impl RoK for PARoK {
