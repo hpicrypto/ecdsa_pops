@@ -121,6 +121,7 @@ impl PoPNativeNizk {
             G_Q: vec![self.ck_t256_Qx],
             H: self.ck_t256_blinding,
         };
+        // the circuit replaces the generators for committed input with ck_ci
         let ck_ci = vec![self.ck_t256_Rx, self.ck_t256_Qx, self.ck_t256_blinding];
         let circuit_rok = CircuitRoK::<T256Affine, 16> {
             universal_params: self.circuit_params.clone(),
@@ -130,6 +131,11 @@ impl PoPNativeNizk {
             ck: vec![ck_ci[0], ck_ci[2]],
         };
         // return the composed RoK
+        //
+        // NOTE: We don't need to prove the last RelPedersen. In particular,
+        // - the opening of the commitment  Qx is known by the application of bls_to_tom_rok
+        // - the opening of the commitment  Rx is known by the pedersen rok
+        // - since we
         rok_compose!(
             PopError;
             // RelECDSA<BLS> ---> RelECDSA<T256> ---> (RelCSchnorr x RelPedersen) ---> (RelPedersen x Trivial)
