@@ -53,3 +53,7 @@ print-trace = ["ark-std/print-trace", "r1csipa/print-trace"]
 [[bench]]
 name = "pop_native"
 harness = false
+
+[[bench]]
+name = "pop_sigma"
+harness = false
