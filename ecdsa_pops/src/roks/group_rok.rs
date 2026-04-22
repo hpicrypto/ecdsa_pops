@@ -36,6 +36,12 @@ pub struct GroupRoK {
 }
 
 impl GroupRoK {
+    pub fn from_ck(ck: &[T256Affine; 2]) -> Self {
+        Self { G: ck[0], H: ck[1] }
+    }
+}
+
+impl GroupRoK {
     /// computes the Point \alpha G for ECDSA verification
     fn compute_alphaG(rs: &RelECDSA<T256Affine, 1>) -> Secp256r1Affine {
         // compute Kxinv^{-1} * m G_p and a commitment to it
