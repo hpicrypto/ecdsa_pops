@@ -20,7 +20,7 @@ fn pop_native_nizk() {
     let ecdsa = ECDSA {
         pp: Secp256r1Affine::generator(),
     };
-    let gs = [*nizk.ck_bls_low(), *nizk.ck_bls_high()];
+    let gs = [*nizk.ck_bls(), *nizk.ck_bls()];
     let h = nizk.ck_bls_blinding();
     let pp = RelECDSAParams::<G1Affine, 2>::new(gs, *h, ecdsa);
 

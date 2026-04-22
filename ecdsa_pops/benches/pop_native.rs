@@ -22,7 +22,7 @@ fn sample_random_ecdsa_instance(nizk: &PoPNativeNizk) -> RelECDSA<G1Affine, 2> {
     let ecdsa = ECDSA {
         pp: Secp256r1Affine::generator(),
     };
-    let Gs = [*nizk.ck_bls_low(), *nizk.ck_bls_high()];
+    let Gs = [*nizk.ck_bls(), *nizk.ck_bls()];
     let H = nizk.ck_bls_blinding();
     let pp = RelECDSAParams::<G1Affine, 2>::new(Gs, *H, ecdsa);
 

@@ -18,31 +18,24 @@ use crate::{
 
 /// A proof of possesion of a P256 signature using native arithmetic
 pub struct PoPNativeNizk {
-    /// A Bls Generator for committing to the low limb of pk
-    ck_bls_low: G1Affine,
-    /// A Bls Generator for committing to the high limb of pk
-    ck_bls_high: G1Affine,
+    /// A Bls Generator for committing to the limbs of pk
+    ck_bls: G1Affine,
     /// A Bls Generator for blinding
     ck_bls_blinding: G1Affine,
     /// A T256 generator for commiting to ECDSA pk Qx
     ck_t256_Qx: T256Affine,
     /// A T256 generator for commiting to CSChnorr commitment Rx
     ck_t256_Rx: T256Affine,
-    /// A T256 generator for blinding
+    /// A common T256 generator for blinding
     ck_t256_blinding: T256Affine,
     /// The universal parameters of the circuit
     circuit_params: R1CSProofParams<T256Affine>,
 }
 
 impl PoPNativeNizk {
-    /// Returns the BLS commitment generator for the low limb.
-    pub fn ck_bls_low(&self) -> &G1Affine {
-        &self.ck_bls_low
-    }
-
-    /// Returns the BLS commitment generator for the high limb.
-    pub fn ck_bls_high(&self) -> &G1Affine {
-        &self.ck_bls_high
+    /// Returns the BLS commitment generator.
+    pub fn ck_bls(&self) -> &G1Affine {
+        &self.ck_bls
     }
 
     /// Returns the BLS blinding generator.
@@ -91,17 +84,15 @@ impl PoPNativeNizk {
         let circuit_params = CSchnorrCircuit::<16>::universal_parameters(label);
         let label = [label, ": BLS committed input parameters"].concat();
         let hasher_bls = G1::hash_to_curve(&label);
-        let ck_bls_low = hasher_bls(b"ck_bls_low").into();
-        let ck_bls_high = hasher_bls(b"ck_bls_high").into();
-        let ck_bls_blinding = hasher_bls(b"ck_bls_high").into();
+        let ck_bls = hasher_bls(b"ck_bls").into();
+        let ck_bls_blinding = hasher_bls(b"ck_bls_blinding").into();
         let hasher_t256 = T256::hash_to_curve(&label);
         let ck_t256_Qx = hasher_t256(b"ck_t256_Qx").into();
         let ck_t256_Rx = hasher_t256(b"ck_t256_Rx").into();
         let ck_t256_blinding = hasher_t256(b"ck_t256_blinding").into();
 
         Self {
-            ck_bls_low,
-            ck_bls_high,
+            ck_bls,
             ck_bls_blinding,
             ck_t256_Qx,
             ck_t256_Rx,
@@ -113,7 +104,7 @@ impl PoPNativeNizk {
     /// Given a statement, specializes parameters and creates the composed rok
     fn get_rok(&self) -> PoPNativeComposedRoK {
         // bls_to_tom_rok rok
-        let ck_bls = [self.ck_bls_low, self.ck_bls_high, self.ck_bls_blinding];
+        let ck_bls = [self.ck_bls, self.ck_bls_blinding];
         let ck_tom = [self.ck_t256_Qx, self.ck_t256_blinding];
         let bls_to_tom_rok = BlsToTomRoK::from_params(&ck_bls, &ck_tom);
         let cschnorr_rok = CSchnorrRoK::<T256Affine, 16, 1> {
@@ -135,7 +126,7 @@ impl PoPNativeNizk {
         // NOTE: We don't need to prove the last RelPedersen. In particular,
         // - the opening of the commitment  Qx is known by the application of bls_to_tom_rok
         // - the opening of the commitment  Rx is known by the pedersen rok
-        // - since we
+        // - these opening constitute an opening to the compact commitment used in the circuit
         rok_compose!(
             PopError;
             // RelECDSA<BLS> ---> RelECDSA<T256> ---> (RelCSchnorr x RelPedersen) ---> (RelPedersen x Trivial)
@@ -199,7 +190,7 @@ mod tests {
 
         // sample a random statement
         let r = sample_random_ecdsa_instance_with_key::<G1Affine, 2>(
-            [nizk.ck_bls_low, nizk.ck_bls_high],
+            [nizk.ck_bls, nizk.ck_bls],
             nizk.ck_bls_blinding,
         );
         assert!(r.in_relation().is_ok());

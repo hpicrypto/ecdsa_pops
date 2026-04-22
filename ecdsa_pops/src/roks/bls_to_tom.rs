@@ -25,10 +25,8 @@ use crate::{
 #[derive(Clone)]
 /// A [RoK] reducing [RelECDSA]<BLS,2> -> [RelECDSA]<T256,1>
 pub struct BlsToTomRoK {
-    /// the [RelDLEQ] for the low limb
-    dleq_rok_low_limb: DleqRoK<G1Affine, T256Affine>,
-    /// the [RelDLEQ] for the high limb
-    dleq_rok_high_limb: DleqRoK<G1Affine, T256Affine>,
+    /// the [DleqRoK] used
+    dleq_rok: DleqRoK<G1Affine, T256Affine>,
 }
 
 impl BlsToTomRoK {
@@ -38,29 +36,18 @@ impl BlsToTomRoK {
     /// - b_f = 8
     /// - b_x = 128
     /// - b_c = 112
-    pub fn from_params(g_bls: &[G1Affine; 3], g_t256: &[T256Affine; 2]) -> Self {
-        let ck_bls_low = vec![g_bls[0], g_bls[2]];
-        let ck_bls_high = vec![g_bls[1], g_bls[2]];
+    pub fn from_params(g_bls: &[G1Affine; 2], g_t256: &[T256Affine; 2]) -> Self {
+        let ck_bls = vec![g_bls[0], g_bls[1]];
         let ck_t256 = g_t256.to_vec();
         let (b_f, b_x, b_c) = (8, 128, 112);
-        let dleq_rok_low_limb = DleqRoK {
+        let dleq_rok = DleqRoK {
             b_f,
             b_x,
             b_c,
-            ck1: ck_bls_low,
+            ck1: ck_bls,
             ck2: ck_t256.clone(),
         };
-        let dleq_rok_high_limb = DleqRoK {
-            b_f,
-            b_x,
-            b_c,
-            ck1: ck_bls_high,
-            ck2: ck_t256.clone(),
-        };
-        Self {
-            dleq_rok_low_limb,
-            dleq_rok_high_limb,
-        }
+        Self { dleq_rok }
     }
 
     /// Creates the two [RelECDSAStatement]s from a
@@ -85,11 +72,11 @@ impl BlsToTomRoK {
         // fresh t256 commitments
         let C_t256_limb_low = msm_function(
             [Qx_as_limbs_t256[0], rho_t256_low_limb].as_slice(),
-            self.dleq_rok_low_limb.ck2.as_slice(),
+            self.dleq_rok.ck2.as_slice(),
         );
         let C_t256_limb_high = msm_function(
             [Qx_as_limbs_t256[1], rho_t256_high_limb].as_slice(),
-            self.dleq_rok_high_limb.ck2.as_slice(),
+            self.dleq_rok.ck2.as_slice(),
         );
 
         // create the two dleq statements
@@ -117,8 +104,8 @@ impl BlsToTomRoK {
             // randomness of t256 commitment
             r2: rho_t256_high_limb,
         };
-        let r_low = RelDLEQ::new(self.dleq_rok_low_limb.clone().into(), x_low, Some(w_low));
-        let r_high = RelDLEQ::new(self.dleq_rok_high_limb.clone().into(), x_high, Some(w_high));
+        let r_low = RelDLEQ::new(self.dleq_rok.clone().into(), x_low, Some(w_low));
+        let r_high = RelDLEQ::new(self.dleq_rok.clone().into(), x_high, Some(w_high));
         [r_low, r_high]
     }
 
@@ -137,22 +124,15 @@ impl BlsToTomRoK {
             C1: x_ecdsa.cx()[1],
             C2: proof.C_t256_high,
         };
-        let r_low = RelDLEQ::new(self.dleq_rok_low_limb.clone().into(), x_low, None);
-        let r_high = RelDLEQ::new(self.dleq_rok_high_limb.clone().into(), x_high, None);
+        let r_low = RelDLEQ::new(self.dleq_rok.clone().into(), x_low, None);
+        let r_high = RelDLEQ::new(self.dleq_rok.clone().into(), x_high, None);
         [r_low, r_high]
     }
 
     /// helper function to assert the parameters are correct
     fn check_params(&self) -> Result<(), PopError> {
         let (b_f, b_x, b_c) = (8, 128, 112);
-        if self.dleq_rok_low_limb.b_x != b_x
-            || self.dleq_rok_low_limb.b_f != b_f
-            || self.dleq_rok_low_limb.b_c != b_c
-            || self.dleq_rok_high_limb.b_x != b_x
-            || self.dleq_rok_high_limb.b_f != b_f
-            || self.dleq_rok_high_limb.b_c != b_c
-            || self.dleq_rok_low_limb.ck2 != self.dleq_rok_high_limb.ck2
-        {
+        if self.dleq_rok.b_x != b_x || self.dleq_rok.b_f != b_f || self.dleq_rok.b_c != b_c {
             return Err(PopError::RoKError(Self::label() + ": bad parameters"));
         }
         Ok(())
@@ -181,21 +161,19 @@ impl RoK for BlsToTomRoK {
 
     fn hash_statement(&self, rs: &Self::RelationSource, transcript: &mut Transcript) {
         // the bx,bc,bf values are the same in the two proofs
-        transcript.append_u64(b"b_x: ", self.dleq_rok_low_limb.b_x as u64);
-        transcript.append_u64(b"b_c: ", self.dleq_rok_low_limb.b_c as u64);
-        transcript.append_u64(b"b_f: ", self.dleq_rok_low_limb.b_f as u64);
+        transcript.append_u64(b"b_x: ", self.dleq_rok.b_x as u64);
+        transcript.append_u64(b"b_c: ", self.dleq_rok.b_c as u64);
+        transcript.append_u64(b"b_f: ", self.dleq_rok.b_f as u64);
         // append commitment keyscommitment keys
         // TODO: make this look nicer, add some helper function
-        [&self.dleq_rok_low_limb, &self.dleq_rok_high_limb].iter().for_each(|&dleq| {
-            dleq.ck1.iter().zip(self.dleq_rok_low_limb.ck2.iter()).enumerate().for_each(
-                |(j, (g_bls, g_t256))| {
-                    transcript.append_u64(b"Append bls generator:", j as u64);
-                    transcript.append_point(b"generator", g_bls);
-                    transcript.append_u64(b"Append t256 generator:", j as u64);
-                    transcript.append_point(b"generator", g_t256);
-                },
-            );
-        });
+        self.dleq_rok.ck1.iter().zip(self.dleq_rok.ck2.iter()).enumerate().for_each(
+            |(j, (g_bls, g_t256))| {
+                transcript.append_u64(b"Append bls generator:", j as u64);
+                transcript.append_point(b"generator", g_bls);
+                transcript.append_u64(b"Append t256 generator:", j as u64);
+                transcript.append_point(b"generator", g_t256);
+            },
+        );
         // /// Commitment to Qx
         transcript.append_point(b"BLS commitment to low limb", &rs.statement().cx()[0]);
         transcript.append_point(b"BLS commitment to high limb", &rs.statement().cx()[1]);
@@ -225,8 +203,8 @@ impl RoK for BlsToTomRoK {
         // create the two dleq statements
         let [r_low, r_high] = self.dleq_from_witness(rs.statement(), witness, rng);
 
-        let dleq_proof_low = self.dleq_rok_low_limb.prove(transcript, &r_low, rng)?;
-        let dleq_proof_high = self.dleq_rok_high_limb.prove(transcript, &r_high, rng)?;
+        let dleq_proof_low = self.dleq_rok.prove(transcript, &r_low, rng)?;
+        let dleq_proof_high = self.dleq_rok.prove(transcript, &r_high, rng)?;
 
         // create target statement
         // C = C_low + 2^128 C_high
@@ -236,8 +214,8 @@ impl RoK for BlsToTomRoK {
         let rho = [r_low.witness().as_ref().unwrap().r2
             + r_high.witness().as_ref().unwrap().r2 * big_to_ff::<Fr>(&shift)];
 
-        let G_t256 = self.dleq_rok_low_limb.ck2[0];
-        let H_t256 = self.dleq_rok_low_limb.ck2[1];
+        let G_t256 = self.dleq_rok.ck2[0];
+        let H_t256 = self.dleq_rok.ck2[1];
         let pp = RelECDSAParams::new([G_t256], H_t256, *rs.params().ecdsa());
         let x = RelECDSAStatement::new(
             [C_t256.into()],
@@ -272,15 +250,15 @@ impl RoK for BlsToTomRoK {
 
         // verify the two dleq proofs
         let [r_low, r_high] = self.dleq_from_proof(rs.statement(), proof);
-        self.dleq_rok_low_limb.verify(transcript, &r_low, &proof.dleq_proof_low)?;
-        self.dleq_rok_high_limb.verify(transcript, &r_high, &proof.dleq_proof_high)?;
+        self.dleq_rok.verify(transcript, &r_low, &proof.dleq_proof_low)?;
+        self.dleq_rok.verify(transcript, &r_high, &proof.dleq_proof_high)?;
 
         // create target statement
         let shift = BigUint::one() << 128;
         let C_t256 = r_low.statement().C2 + r_high.statement().C2 * big_to_ff::<Fr>(&shift);
 
-        let G_t256 = self.dleq_rok_low_limb.ck2[0];
-        let H_t256 = self.dleq_rok_low_limb.ck2[1];
+        let G_t256 = self.dleq_rok.ck2[0];
+        let H_t256 = self.dleq_rok.ck2[1];
         let pp = RelECDSAParams::new([G_t256], H_t256, *rs.params().ecdsa());
         let x = RelECDSAStatement::new(
             [C_t256.into()],
@@ -316,30 +294,17 @@ mod tests {
         let rs = sample_random_ecdsa_instance::<G1Affine, 2>();
 
         // the two bls keys
-        let ck_bls_low = vec![rs.params().gs()[0], *rs.params().h()];
-        let ck_bls_high = vec![rs.params().gs()[1], *rs.params().h()];
+        let ck_bls = vec![rs.params().gs()[0], *rs.params().h()];
 
         // sample two dleq statements
-        let dleq_rok_low_limb = DleqRoK {
+        let dleq_rok = DleqRoK {
             b_x: 128,
             b_c: 112,
             b_f: 8,
-            ck1: ck_bls_low,
+            ck1: ck_bls,
             ck2: ck_t256.clone(),
         };
-
-        let dleq_rok_high_limb = DleqRoK {
-            b_x: 128,
-            b_c: 112,
-            b_f: 8,
-            ck1: ck_bls_high,
-            ck2: ck_t256,
-        };
-
-        let rok = BlsToTomRoK {
-            dleq_rok_low_limb,
-            dleq_rok_high_limb,
-        };
+        let rok = BlsToTomRoK { dleq_rok };
 
         let mut transcript_prover = Transcript::new(b"bls_to_tom_rok test");
         let (rt, proof) = rok.reduce(&mut transcript_prover, &rs, &mut OsRng).unwrap();

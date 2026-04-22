@@ -41,6 +41,21 @@ pub(crate) fn pedersen_key<CCom: CurveAffine>(key_size: usize, label: &'static s
         .collect()
 }
 
+/// Creates a random pedersen commitment key of size L with the same g for each component
+pub(crate) fn pedersen_key_same_g<CCom: CurveAffine>(
+    key_size: usize,
+    label: &'static str,
+) -> Vec<CCom> {
+    let label = format!("Pedersen key same G, {}", label);
+    let hasher = <CCom as CurveAffine>::CurveExt::hash_to_curve(&label);
+
+    let G = hasher(b"G generator").to_affine();
+    let H = hasher(b"H generator").to_affine();
+    let mut ck: Vec<_> = (0..(key_size - 1)).map(|_i| G).collect();
+    ck.push(H);
+    ck
+}
+
 // sample a field element from bytes
 fn c_from_bytes<const SEC_PARAM_BYTES: usize>(bytes: [u8; SEC_PARAM_BYTES]) -> Fq {
     let c_big = BigUint::from_bytes_be(&bytes);
@@ -93,7 +108,7 @@ where
 {
     // sample a commitment key
     let key_size = L + 1;
-    let ck = pedersen_key::<CCom>(key_size, "sample_random_ecdsa_instance");
+    let ck = pedersen_key_same_g::<CCom>(key_size, "sample_random_ecdsa_instance");
     let Gs = ck[0..L].try_into().unwrap();
     let H = ck[L];
 
