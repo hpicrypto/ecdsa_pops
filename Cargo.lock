@@ -991,7 +991,7 @@ dependencies = [
 [[package]]
 name = "midnight-circuits"
 version = "6.2.0"
-source = "git+https://github.com/midnightntwrk/midnight-zk?branch=iquerejeta%2Fecdsa_pop#dba0ad063f9ea6f64898b9329de313cee14d2a51"
+source = "git+https://github.com/midnightntwrk/midnight-zk?branch=iquerejeta%2Fecdsa_pop#7ba8dd0312115f3568e3f808e8cca50338cab310"
 dependencies = [
  "base64",
  "ff",
@@ -1015,7 +1015,7 @@ dependencies = [
 [[package]]
 name = "midnight-curves"
 version = "0.2.0"
-source = "git+https://github.com/midnightntwrk/midnight-zk?branch=iquerejeta%2Fecdsa_pop#dba0ad063f9ea6f64898b9329de313cee14d2a51"
+source = "git+https://github.com/midnightntwrk/midnight-zk?branch=iquerejeta%2Fecdsa_pop#7ba8dd0312115f3568e3f808e8cca50338cab310"
 dependencies = [
  "bitvec",
  "blst",
@@ -1044,7 +1044,7 @@ dependencies = [
 [[package]]
 name = "midnight-proofs"
 version = "0.7.2"
-source = "git+https://github.com/midnightntwrk/midnight-zk?branch=iquerejeta%2Fecdsa_pop#dba0ad063f9ea6f64898b9329de313cee14d2a51"
+source = "git+https://github.com/midnightntwrk/midnight-zk?branch=iquerejeta%2Fecdsa_pop#7ba8dd0312115f3568e3f808e8cca50338cab310"
 dependencies = [
  "blake2b_simd",
  "ff",
@@ -1065,7 +1065,7 @@ dependencies = [
 [[package]]
 name = "midnight-zk-stdlib"
 version = "1.0.0"
-source = "git+https://github.com/midnightntwrk/midnight-zk?branch=iquerejeta%2Fecdsa_pop#dba0ad063f9ea6f64898b9329de313cee14d2a51"
+source = "git+https://github.com/midnightntwrk/midnight-zk?branch=iquerejeta%2Fecdsa_pop#7ba8dd0312115f3568e3f808e8cca50338cab310"
 dependencies = [
  "base64",
  "bincode 2.0.1",

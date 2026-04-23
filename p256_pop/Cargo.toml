@@ -13,12 +13,12 @@ group = "0.13"
 ff = "0.13"
 rand = "0.8"
 
-#[features]
-#single-h-commitment = [
-#    "midnight-zk-stdlib/single-h-commitment",
-#    "midnight-proofs/single-h-commitment",
-#    "midnight-circuits/single-h-commitment",
-#]
+[features]
+single-h-commitment = [
+    "midnight-zk-stdlib/single-h-commitment",
+    "midnight-proofs/single-h-commitment",
+    "midnight-circuits/single-h-commitment",
+]
 
 [[example]]
 name = "ecdsa_pops"
