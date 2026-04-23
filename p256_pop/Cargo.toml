@@ -1,0 +1,25 @@
+[package]
+name = "p256_pop"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+midnight-proofs = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+midnight-curves = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+midnight-circuits = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+midnight-zk-stdlib = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+blake2b_simd = "1"
+group = "0.13"
+ff = "0.13"
+rand = "0.8"
+
+#[features]
+#single-h-commitment = [
+#    "midnight-zk-stdlib/single-h-commitment",
+#    "midnight-proofs/single-h-commitment",
+#    "midnight-circuits/single-h-commitment",
+#]
+
+[[example]]
+name = "ecdsa_pops"
+path = "examples/ecdsa_pops.rs"
