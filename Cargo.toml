@@ -33,3 +33,4 @@ midnight-curves = { git = "https://github.com/midnightntwrk/midnight-zk", branch
 midnight-proofs = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
 midnight-circuits = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
 midnight-zk-stdlib = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+sha3-circuit = { git = "https://github.com/alexandroszacharakis8/sha3-circuit", branch = "midnight0.7.2" }
