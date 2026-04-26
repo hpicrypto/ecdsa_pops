@@ -11,7 +11,7 @@ use r1csipa::{R1CSProof, R1CSProofParams, TranscriptProtocol};
 use rok::{Relation, RoK};
 
 use crate::{
-    circuit::{CSchnorrCircuit, CschnorrCircuitPrivateInputs, CschnorrCircuitPublicInputs},
+    circuit_native::{CSchnorrCircuit, CschnorrCircuitPrivateInputs, CschnorrCircuitPublicInputs},
     errors::PopError,
     relations::{
         rcshnorr::RelCSchnorr,
@@ -177,7 +177,7 @@ mod tests {
     use rok::{rok_compose, Nizk, Relation, RoK};
 
     use crate::{
-        circuit::{utils::biguint_to_scalar, CSchnorrCircuit},
+        circuit_native::{utils::biguint_to_scalar, CSchnorrCircuit},
         errors::PopError,
         relations::{
             rcshnorr::{RelCSchnorr, RelCSchnorrParams, RelCSchnorrStatement, RelCSchnorrWitness},

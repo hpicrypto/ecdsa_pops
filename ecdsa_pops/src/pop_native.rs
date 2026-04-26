@@ -7,7 +7,7 @@ use r1csipa::R1CSProofParams;
 use rok::{rok_compose, rok_compose_type, Nizk, RoK};
 
 use crate::{
-    circuit::CSchnorrCircuit,
+    circuit_native::CSchnorrCircuit,
     errors::PopError,
     roks::{
         bls_to_tom::BlsToTomRoK, circuit_rok::CircuitRoK, cschnorr_rok::CSchnorrRoK,

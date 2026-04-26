@@ -15,7 +15,7 @@ use rok::{RelTrivial, Relation, RoK};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    circuit::utils::big_to_ff,
+    circuit_native::utils::big_to_ff,
     errors::PopError,
     relations::rdleq::{RelDLEQ, RelDLEQParams, RelDLEQStatement, RelDLEQWitness},
 };
