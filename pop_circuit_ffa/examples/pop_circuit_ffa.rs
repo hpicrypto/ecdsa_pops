@@ -1,4 +1,4 @@
-use p256_pop::{EcdsaPoPP256, EcdsaPoPP256Daa, B_FACTORS};
+use pop_circuit_ffa::{EcdsaPoPP256, EcdsaPoPP256Daa, B_FACTORS};
 use std::time::Instant;
 
 use ff::Field;

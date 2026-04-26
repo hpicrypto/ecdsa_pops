@@ -1159,20 +1159,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "p256_pop"
-version = "0.1.0"
-dependencies = [
- "blake2b_simd",
- "ff",
- "group",
- "midnight-circuits",
- "midnight-curves",
- "midnight-proofs",
- "midnight-zk-stdlib",
- "rand",
-]
-
-[[package]]
 name = "page_size"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1269,6 +1255,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51bae2ac328883f7acdfea3d66a7c35751187f870bc81f94563733a154d7a670"
 dependencies = [
  "plotters-backend",
+]
+
+[[package]]
+name = "pop_circuit_ffa"
+version = "0.1.0"
+dependencies = [
+ "blake2b_simd",
+ "ff",
+ "group",
+ "midnight-circuits",
+ "midnight-curves",
+ "midnight-proofs",
+ "midnight-zk-stdlib",
+ "rand",
 ]
 
 [[package]]

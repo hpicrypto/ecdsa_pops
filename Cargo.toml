@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["r1csipa", "ecdsa_pops", "rok", "p256_pop"]
+members = ["r1csipa", "ecdsa_pops", "rok", "pop_circuit_ffa"]
 
 [workspace.package]
 authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com", "TODO"]
