@@ -64,7 +64,7 @@ fn c_from_bytes<const SEC_PARAM_BYTES: usize>(bytes: [u8; SEC_PARAM_BYTES]) -> F
 
 /// sample a random instance of [RelCSchnorr]
 pub(crate) fn sample_random_cschnorr_instance<CCom, const SEC_PARAM_BYTES: usize, const L: usize>(
-) -> RelCSchnorr<CCom, SEC_PARAM_BYTES, L>
+) -> RelCSchnorr<CCom, SEC_PARAM_BYTES, L, 1>
 where
     CCom: CurveAffine,
     CCom::ScalarExt:
@@ -87,13 +87,13 @@ where
     let R = Secp256r1Affine::random(OsRng);
     let Q = Secp256r1Affine::random(OsRng);
 
-    let w = RelCSchnorrWitness::<CCom>::new(R, Q, rho);
+    let w = RelCSchnorrWitness::<CCom, 1>::new(R, Q, [rho]);
 
     // compute a satisfying T
     let T = ((R * c) + Q).into();
 
     // compute commitment
-    let C = RelCSchnorr::<CCom, SEC_PARAM_BYTES, L>::create_commitment(&pp, &w).unwrap();
+    let C = RelCSchnorr::<CCom, SEC_PARAM_BYTES, L, 1>::create_commitment(&pp, &w).unwrap();
     let x = RelCSchnorrStatement::<CCom, SEC_PARAM_BYTES> { C, T, c };
 
     RelCSchnorr::new(pp, x, Some(w))
@@ -322,7 +322,7 @@ fn test_relation_product() {
     let recdsa = sample_random_ecdsa_instance::<T256Affine, 2>();
 
     let product_valid = RelationProduct::<
-        RelCSchnorr<T256Affine, 16, 1>,
+        RelCSchnorr<T256Affine, 16, 1, 1>,
         RelECDSA<T256Affine, 2>,
         PopError,
     >::from_parts(rcschnorr, recdsa);

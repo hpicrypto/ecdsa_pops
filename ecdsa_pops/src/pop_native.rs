@@ -10,7 +10,7 @@ use crate::{
     circuit_native::CSchnorrCircuit,
     errors::PopError,
     roks::{
-        bls_to_tom::BlsToTomRoK, circuit_rok::CircuitRoK, cschnorr_rok::CSchnorrRoK,
+        bls_to_tom::BlsToTomRoK, cschnorr_rok::CSchnorrRoK, native_circuit_rok::CircuitRoK,
         pedersen_rok::PedersenRoK,
     },
     RelECDSA,

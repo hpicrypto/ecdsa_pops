@@ -31,7 +31,7 @@ use crate::{
 ///
 ///  - CCom is the curve where we commit to.
 ///  - L denotes the number of limbs to encode a coordinate of [Secp256r1Affine]
-pub struct RelCSchnorr<CCom, const SEC_PARAM: usize, const L: usize>
+pub struct RelCSchnorr<CCom, const SEC_PARAM: usize, const L: usize, const B_FACTORS: usize>
 where
     CCom: CurveAffine,
     CCom::ScalarExt:
@@ -39,10 +39,11 @@ where
 {
     pp: RelCSchnorrParams<CCom>,
     x: RelCSchnorrStatement<CCom, SEC_PARAM>,
-    w: Option<RelCSchnorrWitness<CCom>>,
+    w: Option<RelCSchnorrWitness<CCom, B_FACTORS>>,
 }
 
-impl<CCom, const SEC_PARAM: usize, const L: usize> RelCSchnorr<CCom, SEC_PARAM, L>
+impl<CCom, const SEC_PARAM: usize, const L: usize, const B_FACTORS: usize>
+    RelCSchnorr<CCom, SEC_PARAM, L, B_FACTORS>
 where
     CCom: CurveAffine,
     CCom::ScalarExt:
@@ -51,13 +52,13 @@ where
     /// Helper function that create the commitment to the vector [Rx, Qx, rho]
     pub(crate) fn create_commitment(
         pp: &RelCSchnorrParams<CCom>,
-        w: &RelCSchnorrWitness<CCom>,
+        w: &RelCSchnorrWitness<CCom, B_FACTORS>,
     ) -> Result<CCom, PopError> {
         // we have two [Fp] elements of L limbs (Rx and Qx) and a blinding element
         let mut scalars = Vec::with_capacity(2 * L + 1);
         scalars.extend_from_slice(fp_to_scalars::<CCom, L>(&w.R.x)?.as_slice());
         scalars.extend_from_slice(fp_to_scalars::<CCom, L>(&w.Q.x)?.as_slice());
-        scalars.push(w.rho);
+        scalars.extend_from_slice(w.rho.as_slice());
         Ok(msm_function(&scalars, &pp.ck).to_affine())
     }
 }
@@ -104,7 +105,7 @@ where
 
 /// Witness of the relation [RelCSchnorr]
 #[derive(Clone, Debug)]
-pub struct RelCSchnorrWitness<CCom>
+pub struct RelCSchnorrWitness<CCom, const B_FACTORS: usize>
 where
     CCom: CurveAffine,
     CCom::ScalarExt:
@@ -112,10 +113,10 @@ where
 {
     pub(crate) R: Secp256r1Affine,
     pub(crate) Q: Secp256r1Affine,
-    pub(crate) rho: CCom::ScalarExt,
+    pub(crate) rho: [CCom::ScalarExt; B_FACTORS],
 }
 
-impl<CCom> RelCSchnorrWitness<CCom>
+impl<CCom, const B_FACTORS: usize> RelCSchnorrWitness<CCom, B_FACTORS>
 where
     CCom: CurveAffine,
     CCom::ScalarExt:
@@ -123,12 +124,17 @@ where
 {
     #[allow(dead_code)]
     /// Create [RelCSchnorrWitness] from parts
-    pub(crate) fn new(R: Secp256r1Affine, Q: Secp256r1Affine, rho: CCom::ScalarExt) -> Self {
+    pub(crate) fn new(
+        R: Secp256r1Affine,
+        Q: Secp256r1Affine,
+        rho: [CCom::ScalarExt; B_FACTORS],
+    ) -> Self {
         RelCSchnorrWitness { R, Q, rho }
     }
 }
 
-impl<CCom, const SEC_PARAM: usize, const L: usize> Relation for RelCSchnorr<CCom, SEC_PARAM, L>
+impl<CCom, const SEC_PARAM: usize, const L: usize, const B_FACTORS: usize> Relation
+    for RelCSchnorr<CCom, SEC_PARAM, L, B_FACTORS>
 where
     CCom: CurveAffine,
     CCom::ScalarExt:
@@ -136,11 +142,14 @@ where
 {
     type Params = RelCSchnorrParams<CCom>;
     type Statement = RelCSchnorrStatement<CCom, SEC_PARAM>;
-    type Witness = RelCSchnorrWitness<CCom>;
+    type Witness = RelCSchnorrWitness<CCom, B_FACTORS>;
     type Error = PopError;
 
     fn label() -> String {
-        format!("CSchnorr relation with {} limbs", L)
+        format!(
+            "CSchnorr relation with {} limbs and {} blinding factors",
+            L, B_FACTORS
+        )
     }
 
     fn params(&self) -> &Self::Params {
@@ -163,7 +172,8 @@ where
         let w = self.w.as_ref().ok_or(PopError::MissingWitness(Self::label()))?;
 
         // 1. C = Commit(ck, R.x, Q.x; r)
-        let b1 = RelCSchnorr::<CCom, SEC_PARAM, L>::create_commitment(&self.pp, w)? == self.x.C;
+        let b1 = RelCSchnorr::<CCom, SEC_PARAM, L, B_FACTORS>::create_commitment(&self.pp, w)?
+            == self.x.C;
 
         // 2. T = cR + Q
         let b2 = self.x.T == ((w.R * self.x.c) + w.Q).into();

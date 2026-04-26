@@ -108,7 +108,7 @@ where
         proof: &<Self as RoK>::Proof,
         c: Fq,
         witness: Option<(RelECDSAWitness<C, L>, C::ScalarExt, Secp256r1Affine)>,
-    ) -> RelCSchnorr<C, SEC_PARAM_BYTES, L> {
+    ) -> RelCSchnorr<C, SEC_PARAM_BYTES, L, 1> {
         // The underlying relation is knowledge of z s.t.
         // zK = Q + m K.x ^{-1} (<==> (z,K) valid on m under Q)
         //
@@ -142,7 +142,7 @@ where
         let cschnorr_w = witness.map(|(w, rho_R, R)| {
             // the combined randomness for C_Q
             let rho_Q: C::ScalarExt = w.rhox().iter().sum();
-            RelCSchnorrWitness::new(R, *w.q(), rho_Q + rho_R)
+            RelCSchnorrWitness::new(R, *w.q(), [rho_Q + rho_R])
         });
 
         RelCSchnorr::new(cschnorr_pp, cschnorr_x, cschnorr_w)
@@ -176,7 +176,7 @@ where
 {
     type RelationSource = RelECDSA<C, L>;
     type RelationTarget =
-        RelationProduct<RelCSchnorr<C, SEC_PARAM_BYTES, L>, RelPedersen<C>, PopError>;
+        RelationProduct<RelCSchnorr<C, SEC_PARAM_BYTES, L, 1>, RelPedersen<C>, PopError>;
     type Proof = CSchnorrRoKProof<C, SEC_PARAM_BYTES>;
     type Error = PopError;
 

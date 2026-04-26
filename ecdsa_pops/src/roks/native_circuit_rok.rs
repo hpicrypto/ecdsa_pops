@@ -63,7 +63,7 @@ impl<const SEC_PARAM_BYTES: usize> CircuitRoK<T256Affine, SEC_PARAM_BYTES> {
 
 impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTES> {
     /// one field element is enough to encode P256 bases to T256 Scalar
-    type RelationSource = RelCSchnorr<T256Affine, SEC_PARAM_BYTES, 1>;
+    type RelationSource = RelCSchnorr<T256Affine, SEC_PARAM_BYTES, 1, 1>;
     type RelationTarget = RelPedersen<T256Affine>;
     type Proof = R1CSProof<T256Affine>;
     type Error = PopError;
@@ -92,11 +92,12 @@ impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTE
         self.initialize(rs, transcript);
 
         let witness = rs.witness().as_ref().ok_or_else(|| {
-            PopError::MissingWitness(RelCSchnorr::<T256Affine, SEC_PARAM_BYTES, 1>::label())
+            PopError::MissingWitness(RelCSchnorr::<T256Affine, SEC_PARAM_BYTES, 1, 1>::label())
         })?;
 
         // create the circuit and hash the parameters
-        let private_inputs = CschnorrCircuitPrivateInputs::new(witness.R, witness.Q, witness.rho);
+        let private_inputs =
+            CschnorrCircuitPrivateInputs::new(witness.R, witness.Q, witness.rho[0]);
         let public_inputs =
             CschnorrCircuitPublicInputs::<SEC_PARAM_BYTES>::new(rs.statement().T, rs.statement().c);
         let circuit = CSchnorrCircuit::new(Some(private_inputs), public_inputs);
@@ -114,7 +115,11 @@ impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTE
             C: rs.statement().C,
         };
         let w = RelPedersenWitness {
-            m: vec![fp_to_fr(&witness.R.x), fp_to_fr(&witness.Q.x), witness.rho],
+            m: vec![
+                fp_to_fr(&witness.R.x),
+                fp_to_fr(&witness.Q.x),
+                witness.rho[0],
+            ],
         };
         let rt = RelPedersen::new(pp, x, Some(w));
 
@@ -183,7 +188,7 @@ mod tests {
             rcshnorr::{RelCSchnorr, RelCSchnorrParams, RelCSchnorrStatement, RelCSchnorrWitness},
             tests::pedersen_key,
         },
-        roks::{circuit_rok::CircuitRoK, pedersen_rok::PedersenRoK},
+        roks::{native_circuit_rok::CircuitRoK, pedersen_rok::PedersenRoK},
         utils::{fp_to_fr, Fp, Fq},
     };
 
@@ -196,7 +201,7 @@ mod tests {
     // sample a random instance
     fn sample_random_relation<const SEC_PARAM_BYTES: usize>(
         ck_ci: &[T256Affine],
-    ) -> RelCSchnorr<T256Affine, SEC_PARAM_BYTES, 1> {
+    ) -> RelCSchnorr<T256Affine, SEC_PARAM_BYTES, 1, 1> {
         // sample a random challenge of SEC_PARAM_BYTES  bytes
         let mut bytes = [0u8; SEC_PARAM_BYTES];
         OsRng.fill_bytes(&mut bytes);
@@ -219,7 +224,7 @@ mod tests {
         let w = RelCSchnorrWitness {
             R,
             Q,
-            rho: fp_to_fr(&rho),
+            rho: [fp_to_fr(&rho)],
         };
         RelCSchnorr::new(pp, x, Some(w))
     }
@@ -229,7 +234,7 @@ mod tests {
         let universal_params = CSchnorrCircuit::<16>::universal_parameters("test circuit rok");
         let ck_ci = pedersen_key::<T256Affine>(3, "ck_ci");
         let rs_prover = sample_random_relation::<16>(&ck_ci);
-        let rs_verifier = RelCSchnorr::<T256Affine, 16, 1>::new(
+        let rs_verifier = RelCSchnorr::<T256Affine, 16, 1, 1>::new(
             rs_prover.params().clone(),
             rs_prover.statement().clone(),
             None,
@@ -258,7 +263,7 @@ mod tests {
             CSchnorrCircuit::<16>::universal_parameters("test circuit rok with opening");
         let ck_ci = pedersen_key::<T256Affine>(3, "ck_ci");
         let rs_prover = sample_random_relation::<16>(&ck_ci);
-        let rs_verifier = RelCSchnorr::<T256Affine, 16, 1>::new(
+        let rs_verifier = RelCSchnorr::<T256Affine, 16, 1, 1>::new(
             rs_prover.params().clone(),
             rs_prover.statement().clone(),
             None,
