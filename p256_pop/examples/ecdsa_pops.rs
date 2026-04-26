@@ -1,12 +1,8 @@
-//! Proof of possession for a secp256r1 (NIST P-256) key pair.
-//!
 //! Proves knowledge of points Q, R on P-256 such that
 //!
 //!   T = R + c·Q
 //!
-//! where T is the only public input.  The challenge scalar c is embedded in
-//! the relation struct, so the circuit structure — and the verifying key —
-//! is specific to this value of c.
+//! where T and c are the only public input.
 //!
 //! Two scalar-multiplication strategies are compiled and compared:
 //!
@@ -19,38 +15,89 @@
 //!   Competitive when popcount(c) < ~40.
 //!
 //! Instance:  T: P256
-//! Witness:   (Q: P256,  R: P256)
+//! Witness:   (Q: P256,  R: P256, blinders)
 
+use midnight_curves::p256::{affine_x, P256Affine};
 use std::time::Instant;
 
+use ff::{Field, PrimeField};
 use group::Group;
 use midnight_circuits::{
     field::foreign::params::MultiEmulationParams,
     instructions::{
-        AssertionInstructions, AssignmentInstructions, DecompositionInstructions,
-        EccInstructions, PublicInputInstructions,
+        public_input::CommittedInstanceInstructions, AssertionInstructions, AssignmentInstructions,
+        DecompositionInstructions, EccInstructions, PublicInputInstructions,
     },
-    types::{AssignedForeignPoint, Instantiable},
+    types::{AssignedForeignPoint, AssignedNative, Instantiable},
     CircuitField,
 };
-use ff::PrimeField;
+
 use midnight_curves::p256::{Fq as P256Scalar, P256};
 use midnight_proofs::{
     circuit::{Layouter, Value},
-    plonk::Error,
+    plonk::{commit_to_instances, Error},
+    poly::kzg::KZGCommitmentScheme,
 };
-use midnight_zk_stdlib::{cost_model, utils::plonk_api::srs_for_test, Relation, ZkStdLib, ZkStdLibArch};
+use midnight_zk_stdlib::{
+    cost_model, utils::plonk_api::srs_for_test, Relation, ZkStdLib, ZkStdLibArch,
+};
 use rand::{rngs::OsRng, Rng};
 
 type F = midnight_curves::Fq;
 
 /// Number of bits in the challenge scalar c.
-const NB_BITS_C: usize = 100;
+const NB_BITS_C: usize = 96;
+
+// helper function that decomposes a p256 point to two Field elements by expressing its x-coordinate
+// to two limbs of 128 bits. Returns the limbs represented in the field.
+//
+// TODO: make this generic
+fn p256_to_limbs<F: CircuitField>(q: &P256Affine) -> (F, F) {
+    // convert the point to bytes
+    let qx_bytes = &affine_x(&q).to_bytes_be().to_vec();
+
+    // high limb
+    let mut qx_high_bytes = [0u8; 16].to_vec();
+    qx_high_bytes.extend_from_slice(&qx_bytes[0..16]);
+    let qx_high = F::from_bytes_be(&qx_high_bytes).unwrap();
+
+    // low limb
+    let mut qx_low_bytes = [0u8; 16].to_vec();
+    qx_low_bytes.extend_from_slice(&qx_bytes[16..]);
+    let qx_low = F::from_bytes_be(&qx_low_bytes).unwrap();
+
+    (qx_low, qx_high)
+}
+
+// helper function that constructs the committed input for both circuits
+// the committed inputs are:
+// [q.x_low, qx.high, r.x_low, rx.high, b0, ..., b5]
+fn format_committed_instances_helper(q: &P256, r: &P256, blinders: &[F; 6]) -> Vec<F> {
+    let q_limbs = p256_to_limbs::<F>(&q.to_affine());
+    let r_limbs = p256_to_limbs::<F>(&r.to_affine());
+    [
+        // q low limb
+        AssignedNative::as_public_input(&q_limbs.0),
+        // q high limb
+        AssignedNative::as_public_input(&q_limbs.1),
+        // r low limb
+        AssignedNative::as_public_input(&r_limbs.0),
+        // r high limb
+        AssignedNative::as_public_input(&r_limbs.1),
+    ]
+    .into_iter()
+    // the blinding factors
+    .chain(blinders.iter().map(|r| AssignedNative::as_public_input(r)))
+    .flatten()
+    .collect()
+}
 
 // ── Windowed relation (WS=4, c as public input) ───────────────────────────────
 
 /// Parameterless relation: c is a public input, so a single VK covers all
 /// challenge values.  Instance = (T, c) where c is a bounded u128 scalar.
+///
+/// Six blinding factors are used to guaranteed the KZG poly is hiding
 #[derive(Clone)]
 pub struct EcdsaPoPP256;
 
@@ -58,12 +105,16 @@ impl Relation for EcdsaPoPP256 {
     type Error = Error;
     /// Public inputs: the target point T and the challenge scalar c.
     type Instance = (P256, u128);
-    type Witness = (P256, P256);
+    type Witness = (P256, P256, [F; 6]);
 
     fn format_instance((t, c): &Self::Instance) -> Result<Vec<F>, Error> {
         let mut pi = AssignedForeignPoint::<F, P256, MultiEmulationParams>::as_public_input(t);
         pi.push(F::from_u128(*c));
         Ok(pi)
+    }
+
+    fn format_committed_instances(w: &Self::Witness) -> Vec<F> {
+        format_committed_instances_helper(&w.0, &w.1, &w.2)
     }
 
     fn circuit(
@@ -74,6 +125,7 @@ impl Relation for EcdsaPoPP256 {
         witness: Value<Self::Witness>,
     ) -> Result<(), Error> {
         let curve = std_lib.p256();
+        let base = curve.base_field_chip();
 
         // ── Public inputs ─────────────────────────────────────────────────────
         let t = curve.assign_as_public_input(layouter, instance.map(|(t, _)| t))?;
@@ -81,20 +133,59 @@ impl Relation for EcdsaPoPP256 {
             std_lib.assign_as_public_input(layouter, instance.map(|(_, c)| F::from_u128(c)))?;
 
         // ── Witnesses ─────────────────────────────────────────────────────────
-        let (q_val, r_val) = witness.map(|(q, r)| (q, r)).unzip();
-        let q = curve.assign(layouter, q_val)?;
+        let (q_val, r_val) = witness.map(|(q, r, _)| (q, r)).unzip();
+        let q: AssignedForeignPoint<_, _, _> = curve.assign(layouter, q_val)?;
         let r = curve.assign(layouter, r_val)?;
 
         // ── Relation: T = R + c·Q ─────────────────────────────────────────────
         // Decompose c into NB_BITS_C little-endian bits (range-checked).
         let c_bits = std_lib.assigned_to_le_bits(layouter, &c_native, Some(NB_BITS_C), false)?;
-        let cq = curve.msm_by_le_bits(layouter, &[c_bits], &[q])?;
+        let cq = curve.msm_by_le_bits(layouter, &[c_bits], &[q.clone()])?;
         let result = curve.add(layouter, &cq, &r)?;
-        curve.assert_equal(layouter, &result, &t)
+        curve.assert_equal(layouter, &result, &t)?;
+
+        // Compute the values q.x, q.r by the committed inputs
+        //
+        // TODO: abstract this common part of both circuits
+        let ps = [q_val, r_val]
+            .into_iter()
+            .map(|p_val| {
+                // compute the low and high limbs as F elements
+                let (p_val_low, p_val_high) = p_val.map(|p| p256_to_limbs(&p.to_affine())).unzip();
+
+                // assign them as F elements and constrain them as committed inputs
+                let p_low: AssignedNative<F> = std_lib.assign(layouter, p_val_low)?;
+                std_lib.constrain_as_committed_public_input(layouter, &p_low)?;
+                let p_high: AssignedNative<F> = std_lib.assign(layouter, p_val_high)?;
+                std_lib.constrain_as_committed_public_input(layouter, &p_high)?;
+
+                // convert the elements to bytes representing p256 elements
+                let p_low_bytes = std_lib.assigned_to_be_bytes(layouter, &p_low, Some(16))?;
+                let p_high_bytes = std_lib.assigned_to_be_bytes(layouter, &p_high, Some(16))?;
+
+                // compute the foreign point p from the bytes
+                let p_bytes: Vec<_> =
+                    p_high_bytes.iter().chain(p_low_bytes.iter()).cloned().collect();
+                let px = base.assigned_from_be_bytes(layouter, &p_bytes)?;
+
+                Ok::<_, Error>(px)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // compare with the witnessed points
+        let qx = curve.x_coordinate(&q);
+        base.assert_equal(layouter, &qx, &ps[0])?;
+        let rx = curve.x_coordinate(&r);
+        base.assert_equal(layouter, &rx, &ps[1])
     }
 
     fn used_chips(&self) -> ZkStdLibArch {
-        ZkStdLibArch { p256: true, nb_arith_cols: 5, nr_pow2range_cols: 4, ..ZkStdLibArch::default() }
+        ZkStdLibArch {
+            p256: true,
+            nb_arith_cols: 5,
+            nr_pow2range_cols: 4,
+            ..ZkStdLibArch::default()
+        }
     }
 
     fn write_relation<W: std::io::Write>(&self, _writer: &mut W) -> std::io::Result<()> {
@@ -122,10 +213,14 @@ impl EcdsaPoPP256Daa {
 impl Relation for EcdsaPoPP256Daa {
     type Error = Error;
     type Instance = P256;
-    type Witness = (P256, P256);
+    type Witness = (P256, P256, [F; 6]);
 
     fn format_instance(t: &Self::Instance) -> Result<Vec<F>, Error> {
         Ok(AssignedForeignPoint::<F, P256, MultiEmulationParams>::as_public_input(t))
+    }
+
+    fn format_committed_instances(w: &Self::Witness) -> Vec<F> {
+        format_committed_instances_helper(&w.0, &w.1, &w.2)
     }
 
     fn circuit(
@@ -136,17 +231,61 @@ impl Relation for EcdsaPoPP256Daa {
         witness: Value<Self::Witness>,
     ) -> Result<(), Error> {
         let curve = std_lib.p256();
+        let base = curve.base_field_chip();
+
+        // assign the public point t
         let t = curve.assign_as_public_input(layouter, instance)?;
-        let (q_val, r_val) = witness.map(|(q, r)| (q, r)).unzip();
+
+        // the assigned secret points q, r
+        let (q_val, r_val) = witness.map(|(q, r, _)| (q, r)).unzip();
         let q = curve.assign(layouter, q_val)?;
         let r = curve.assign(layouter, r_val)?;
+
+        // compute c*q + r in circuit
         let cq = curve.mul_by_u128(layouter, self.c_bits, &q)?;
         let result = curve.add(layouter, &cq, &r)?;
-        curve.assert_equal(layouter, &result, &t)
+        // assert c*q + r = t where t is a public point
+        curve.assert_equal(layouter, &result, &t)?;
+
+        // Compute the values q.x, q.r by the committed inputs
+        let ps = [q_val, r_val]
+            .into_iter()
+            .map(|p_val| {
+                // compute the low and high limbs as F elements
+                let (p_val_low, p_val_high) = p_val.map(|p| p256_to_limbs(&p.to_affine())).unzip();
+
+                // assign them as F elements and constrain them as committed inputs
+                let p_low: AssignedNative<F> = std_lib.assign(layouter, p_val_low)?;
+                std_lib.constrain_as_committed_public_input(layouter, &p_low)?;
+                let p_high: AssignedNative<F> = std_lib.assign(layouter, p_val_high)?;
+                std_lib.constrain_as_committed_public_input(layouter, &p_high)?;
+
+                // convert the elements to bytes representing p256 elements
+                let p_low_bytes = std_lib.assigned_to_be_bytes(layouter, &p_low, Some(16))?;
+                let p_high_bytes = std_lib.assigned_to_be_bytes(layouter, &p_high, Some(16))?;
+
+                // compute the foreign point p as bytes
+                let p_bytes: Vec<_> =
+                    p_high_bytes.iter().chain(p_low_bytes.iter()).cloned().collect();
+                let px = base.assigned_from_be_bytes(layouter, &p_bytes)?;
+
+                Ok::<_, Error>(px)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let qx = curve.x_coordinate(&q);
+        base.assert_equal(layouter, &qx, &ps[0])?;
+        let rx = curve.x_coordinate(&r);
+        base.assert_equal(layouter, &rx, &ps[1])
     }
 
     fn used_chips(&self) -> ZkStdLibArch {
-        ZkStdLibArch { p256: true, nb_arith_cols: 7, nr_pow2range_cols: 6, ..ZkStdLibArch::default() }
+        ZkStdLibArch {
+            p256: true,
+            nb_arith_cols: 7,
+            nr_pow2range_cols: 6,
+            ..ZkStdLibArch::default()
+        }
     }
 
     fn write_relation<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
@@ -156,18 +295,20 @@ impl Relation for EcdsaPoPP256Daa {
     fn read_relation<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
         let mut buf = [0u8; 16];
         reader.read_exact(&mut buf)?;
-        Ok(EcdsaPoPP256Daa { c_bits: u128::from_le_bytes(buf) })
+        Ok(EcdsaPoPP256Daa {
+            c_bits: u128::from_le_bytes(buf),
+        })
     }
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
-
 fn main() {
     let mut rng = OsRng;
 
     // ── Generate a valid witness ─────────────────────────────────────────────
     let q = P256::random(&mut rng);
     let r = P256::random(&mut rng);
+    let blinders = [0; 6].map(|_| F::random(&mut rng));
 
     let c_u128: u128 = rng.gen::<u128>() & ((1u128 << NB_BITS_C) - 1);
     let c_bits: Vec<bool> = (0..NB_BITS_C).map(|i| (c_u128 >> i) & 1 == 1).collect();
@@ -189,28 +330,47 @@ fn main() {
 
     println!(
         "Windowed WS=4:  k={}, {} / {} rows  ({} advice, {} fixed, {} lookups)",
-        m_w.k, m_w.rows, 1u64 << m_w.k,
-        m_w.advice_columns, m_w.fixed_columns, m_w.lookups,
+        m_w.k,
+        m_w.rows,
+        1u64 << m_w.k,
+        m_w.advice_columns,
+        m_w.fixed_columns,
+        m_w.lookups,
     );
     println!(
         "Double-and-add: k={}, {} / {} rows  ({} advice, {} fixed, {} lookups)",
-        m_d.k, m_d.rows, 1u64 << m_d.k,
-        m_d.advice_columns, m_d.fixed_columns, m_d.lookups,
+        m_d.k,
+        m_d.rows,
+        1u64 << m_d.k,
+        m_d.advice_columns,
+        m_d.fixed_columns,
+        m_d.lookups,
     );
 
     // ── Full proof flow for the smaller circuit ───────────────────────────────
     let instance_windowed = (t.clone(), c_u128);
     if m_w.rows <= m_d.rows {
         println!("\nRunning full proof with windowed WS=4 (fewer rows).");
-        run_proof(rel_windowed, m_w.k, &instance_windowed, (q, r), rng);
+        run_proof(
+            rel_windowed,
+            m_w.k,
+            &instance_windowed,
+            (q, r, blinders),
+            rng,
+        );
     } else {
         println!("\nRunning full proof with double-and-add (fewer rows).");
-        run_proof(rel_daa, m_d.k, &t, (q, r), rng);
+        run_proof(rel_daa, m_d.k, &t, (q, r, blinders), rng);
     }
 }
 
-fn run_proof<Rel>(relation: Rel, k: u32, instance: &Rel::Instance, witness: Rel::Witness, rng: OsRng)
-where
+fn run_proof<Rel>(
+    relation: Rel,
+    k: u32,
+    instance: &Rel::Instance,
+    witness: Rel::Witness,
+    rng: OsRng,
+) where
     Rel: Relation,
     Rel::Error: std::fmt::Debug,
 {
@@ -224,10 +384,23 @@ where
 
     let t_prove = Instant::now();
     let proof = midnight_zk_stdlib::prove::<Rel, blake2b_simd::State>(
-        &srs, &pk, &relation, instance, witness, rng,
+        &srs,
+        &pk,
+        &relation,
+        instance,
+        witness.clone(),
+        rng,
     )
     .expect("proof generation should not fail");
-    println!("Proof generation:   {:?}  ({} bytes)", t_prove.elapsed(), proof.len());
+    println!(
+        "Proof generation:   {:?}  ({} bytes)",
+        t_prove.elapsed(),
+        proof.len()
+    );
+
+    let c_instance = Rel::format_committed_instances(&witness);
+    let commitment =
+        commit_to_instances::<F, KZGCommitmentScheme<_>>(&srs, vk.vk().get_domain(), &c_instance);
 
     let t_verify = Instant::now();
     assert!(
@@ -235,7 +408,7 @@ where
             &srs.verifier_params(),
             &vk,
             instance,
-            None,
+            Some(commitment.into()),
             &proof,
         )
         .is_ok(),
