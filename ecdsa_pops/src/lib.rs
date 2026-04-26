@@ -8,7 +8,7 @@
 #![deny(missing_docs)]
 #![allow(non_snake_case)]
 
-pub(crate) mod circuit;
+pub(crate) mod circuit_native;
 pub mod errors;
 mod pop_native;
 mod pop_sigma;

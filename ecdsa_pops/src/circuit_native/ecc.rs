@@ -13,7 +13,7 @@ use halo2curves::{secp256r1::Secp256r1Affine, CurveAffine};
 use num_bigint::BigUint;
 use num_traits::Num;
 
-use crate::circuit::utils::{
+use crate::circuit_native::utils::{
     alloc_num_equals, alloc_one, alloc_zero, conditionally_select, conditionally_select2,
     select_num_or_one, select_num_or_zero, select_num_or_zero2, select_one_or_diff2,
     select_one_or_num2, select_zero_or_num2,
@@ -891,7 +891,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        circuit::utils::enforce_equal,
+        circuit_native::utils::enforce_equal,
         utils::{fp_to_fr, fq_to_fr, Fq, Fr},
     };
 

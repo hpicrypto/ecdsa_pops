@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["r1csipa", "ecdsa_pops", "rok"]
+members = ["r1csipa", "ecdsa_pops", "rok", "pop_circuit_ffa"]
 
 [workspace.package]
 authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com", "TODO"]
@@ -27,3 +27,13 @@ halo2curves = { git = "https://github.com/zaverucha/signature-proof", features =
   "bits",
   "serde",
 ] }
+
+# Redirect midnight-* from crates.io to the ecdsa_pop git branch.
+# The branch bumps midnight-proofs to 0.7.2 and midnight-circuits to 6.2.0
+# (above crates.io), so Cargo's resolver picks the patched git versions.
+[patch.crates-io]
+midnight-curves = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+midnight-proofs = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+midnight-circuits = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+midnight-zk-stdlib = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
+sha3-circuit = { git = "https://github.com/alexandroszacharakis8/sha3-circuit", branch = "midnight0.7.2" }

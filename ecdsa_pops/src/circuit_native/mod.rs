@@ -14,7 +14,7 @@ use merlin::Transcript;
 use r1csipa::{bellpepper::r1cs::R1CSShape, R1CSInstance, R1CSProof, R1CSProofParams};
 
 use crate::{
-    circuit::ecc::AllocatedPoint,
+    circuit_native::ecc::AllocatedPoint,
     errors::PopError,
     utils::{fp_to_fr, fq_to_fr, Fq, Fr},
 };
@@ -267,7 +267,7 @@ mod tests {
     use rand_core::{OsRng, RngCore};
 
     use crate::{
-        circuit::{
+        circuit_native::{
             utils::biguint_to_scalar, CSchnorrCircuit, CschnorrCircuitPrivateInputs,
             CschnorrCircuitPublicInputs,
         },

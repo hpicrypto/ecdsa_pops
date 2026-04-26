@@ -7,7 +7,7 @@ use halo2curves::{secp256r1::Secp256r1Affine, t256::T256Affine, CurveAffine};
 use num_bigint::BigUint;
 
 use crate::{
-    circuit::utils::{big_to_ff, ff_to_big},
+    circuit_native::utils::{big_to_ff, ff_to_big},
     errors::PopError,
 };
 

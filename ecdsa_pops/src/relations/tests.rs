@@ -16,7 +16,7 @@ use super::{
     rsm::{RelSM, RelSMParams, RelSMStatement, RelSMWitness},
 };
 use crate::{
-    circuit::utils::big_to_ff,
+    circuit_native::utils::big_to_ff,
     errors::PopError,
     relations::{
         rcshnorr::{RelCSchnorr, RelCSchnorrParams, RelCSchnorrStatement, RelCSchnorrWitness},

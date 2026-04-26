@@ -14,7 +14,7 @@ use num_bigint::BigUint;
 use r1csipa::msm_function;
 use rok::Relation;
 
-use crate::{circuit::utils::biguint_to_scalar, errors::PopError};
+use crate::{circuit_native::utils::biguint_to_scalar, errors::PopError};
 
 #[derive(Debug, Clone)]
 /// The DLEQ [Relation]
