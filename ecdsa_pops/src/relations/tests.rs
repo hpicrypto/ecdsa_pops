@@ -76,7 +76,7 @@ where
 {
     // sample a commitment key
     let ck_R = pedersen_key::<CCom>(L, "ck_R").try_into().unwrap();
-    let ck_Q = pedersen_key::<CCom>(L, "ck_L").try_into().unwrap();
+    let ck_Q = pedersen_key::<CCom>(L, "ck_Q").try_into().unwrap();
     let h = pedersen_key::<CCom>(1, "H")[0];
     let pp = RelCSchnorrParams { ck_R, ck_Q, h };
 

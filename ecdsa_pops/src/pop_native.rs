@@ -10,8 +10,8 @@ use crate::{
     circuit_native::CSchnorrCircuit,
     errors::PopError,
     roks::{
-        bls_to_tom::BlsToTomRoK, cschnorr_rok::CSchnorrRoK, native_circuit_rok::CircuitRoK,
-        pedersen_rok::PedersenRoK,
+        bls_to_tom::BlsToTomRoK, cschnorr_native_rok::CSchnorrNativeRoK, cschnorr_rok::CSchnorrRoK,
+        native_circuit_rok::NativeCircuitRoK, pedersen_rok::PedersenRoK,
     },
     RelECDSA,
 };
@@ -65,8 +65,7 @@ impl PoPNativeNizk {
 }
 
 type CSchnorrRoKT256128 = CSchnorrRoK<T256Affine, 16, 1>;
-type CircuitRoK128 = CircuitRoK<T256Affine, 16>;
-type PedersenRoKT256 = PedersenRoK<T256Affine>;
+type NativeCircuitRoK128 = NativeCircuitRoK<T256Affine, 16>;
 
 /// The type of the composed rok to prove proof-of-possession
 ///
@@ -74,8 +73,11 @@ type PedersenRoKT256 = PedersenRoK<T256Affine>;
 /// opening from the previous proofs
 type PoPNativeComposedRoK = rok_compose_type!(
     PopError;
-    // RelECDSA<BLS> ---> RelECDSA<T256> ---> (RelCSchnorr x RelPedersen) ---> (RelPedersen x Trivial)
-    ((CircuitRoK128 x PedersenRoKT256) o CSchnorrRoKT256128) o BlsToTomRoK
+    // RelECDSA<BLS> ---> RelECDSA<T256>
+    //               ---> RelCSchnorr<T256,128>
+    //               ---> RelCSchnorrCompact<T256,128>
+    //               ---> RelTrivial<T256,128>
+    ((NativeCircuitRoK128 o CSchnorrNativeRoK) o CSchnorrRoKT256128) o BlsToTomRoK
 );
 
 impl PoPNativeNizk {
@@ -108,18 +110,20 @@ impl PoPNativeNizk {
         let ck_tom = [self.ck_t256_Qx, self.ck_t256_blinding];
         let bls_to_tom_rok = BlsToTomRoK::from_params(&ck_bls, &ck_tom);
         let cschnorr_rok = CSchnorrRoK::<T256Affine, 16, 1> {
-            G_R: vec![self.ck_t256_Rx],
-            G_Q: vec![self.ck_t256_Qx],
+            G_R: [self.ck_t256_Rx],
+            G_Q: [self.ck_t256_Qx],
+            H: self.ck_t256_blinding,
+        };
+        let cschnorr_native_rok = CSchnorrNativeRoK {
+            G_R: self.ck_t256_Rx,
+            G_Q: self.ck_t256_Qx,
             H: self.ck_t256_blinding,
         };
         // the circuit replaces the generators for committed input with ck_ci
         let ck_ci = vec![self.ck_t256_Rx, self.ck_t256_Qx, self.ck_t256_blinding];
-        let circuit_rok = CircuitRoK::<T256Affine, 16> {
+        let native_circuit_rok = NativeCircuitRoK::<T256Affine, 16> {
             universal_params: self.circuit_params.clone(),
             ck_ci: ck_ci.clone(),
-        };
-        let pederen_rok = PedersenRoK::<T256Affine> {
-            ck: vec![ck_ci[0], ck_ci[2]],
         };
         // return the composed RoK
         //
@@ -130,46 +134,46 @@ impl PoPNativeNizk {
         rok_compose!(
             PopError;
             // RelECDSA<BLS> ---> RelECDSA<T256> ---> (RelCSchnorr x RelPedersen) ---> (RelPedersen x Trivial)
-            ((circuit_rok x pederen_rok) o cschnorr_rok) o bls_to_tom_rok
+            ((native_circuit_rok o cschnorr_native_rok) o cschnorr_rok) o bls_to_tom_rok
         )
     }
 }
 
-impl Nizk for PoPNativeNizk {
-    type Relation = RelECDSA<G1Affine, 2>;
-    type Proof = <PoPNativeComposedRoK as RoK>::Proof;
-    type Error = PopError;
+// impl Nizk for PoPNativeNizk {
+//     type Relation = RelECDSA<G1Affine, 2>;
+//     type Proof = <PoPNativeComposedRoK as RoK>::Proof;
+//     type Error = PopError;
 
-    fn label() -> String {
-        PoPNativeComposedRoK::label()
-    }
+//     fn label() -> String {
+//         <PoPNativeComposedRoK as RoK>::label()
+//     }
 
-    fn hash_statement(&self, r: &Self::Relation, transcript: &mut merlin::Transcript) {
-        self.get_rok().hash_statement(r, transcript)
-    }
+//     fn hash_statement(&self, r: &Self::Relation, transcript: &mut merlin::Transcript) {
+//         self.get_rok().hash_statement(r, transcript)
+//     }
 
-    fn prove<R>(
-        &self,
-        transcript: &mut merlin::Transcript,
-        r: &Self::Relation,
-        rng: &mut R,
-    ) -> Result<Self::Proof, Self::Error>
-    where
-        R: rand_core::RngCore + rand_core::CryptoRng,
-    {
-        self.get_rok().reduce(transcript, r, rng).map(|r| r.1)
-    }
+//     fn prove<R>(
+//         &self,
+//         transcript: &mut merlin::Transcript,
+//         r: &Self::Relation,
+//         rng: &mut R,
+//     ) -> Result<Self::Proof, Self::Error>
+//     where
+//         R: rand_core::RngCore + rand_core::CryptoRng,
+//     {
+//         self.get_rok().reduce(transcript, r, rng).map(|r| r.1)
+//     }
 
-    fn verify(
-        &self,
-        transcript: &mut merlin::Transcript,
-        r: &Self::Relation,
-        proof: &Self::Proof,
-    ) -> Result<(), Self::Error> {
-        self.get_rok().reduce_statement(transcript, r, proof)?;
-        Ok(())
-    }
-}
+//     fn verify(
+//         &self,
+//         transcript: &mut merlin::Transcript,
+//         r: &Self::Relation,
+//         proof: &Self::Proof,
+//     ) -> Result<(), Self::Error> {
+//         self.get_rok().reduce_statement(transcript, r, proof)?;
+//         Ok(())
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -197,7 +201,7 @@ mod tests {
         assert!(r.in_relation().is_ok());
 
         let mut transcript_prover = Transcript::new(b"pop native proof");
-        let proof = nizk.prove(&mut transcript_prover, &r, &mut OsRng).unwrap();
+        let proof = nizk.get_rok().prove(&mut transcript_prover, &r, &mut OsRng).unwrap();
 
         let bytes = bincode::serialize(&proof).unwrap();
         println!("proof size: {} bytes", bytes.len());
@@ -205,7 +209,7 @@ mod tests {
         let r_verifier = RelECDSA::new(r.params().clone(), r.statement().clone(), None);
 
         let mut transcript_verifier = Transcript::new(b"pop native proof");
-        let result = nizk.verify(&mut transcript_verifier, &r_verifier, &proof);
+        let result = nizk.get_rok().verify(&mut transcript_verifier, &r_verifier, &proof);
 
         assert!(result.is_ok(), "nizk failed: {:?}", result);
     }

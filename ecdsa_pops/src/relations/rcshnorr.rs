@@ -64,10 +64,10 @@ where
     CCom::ScalarExt:
         PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
 {
-    /// Commitment to Qx
-    pub(crate) CQ: [CCom; L],
     /// Commitment to Rx
     pub(crate) CR: [CCom; L],
+    /// Commitment to Qx
+    pub(crate) CQ: [CCom; L],
     /// A public [Secp256r1Affine] point T
     pub(crate) T: Secp256r1Affine,
     /// The derived challenge in [Fq]
@@ -97,8 +97,8 @@ where
 {
     pub(crate) R: Secp256r1Affine,
     pub(crate) Q: Secp256r1Affine,
-    pub(crate) rhoQ: [CCom::ScalarExt; L],
     pub(crate) rhoR: [CCom::ScalarExt; L],
+    pub(crate) rhoQ: [CCom::ScalarExt; L],
 }
 
 impl<CCom, const L: usize> RelCSchnorrWitness<CCom, L>

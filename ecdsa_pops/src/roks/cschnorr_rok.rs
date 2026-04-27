@@ -1,6 +1,4 @@
-//! CSchnorr RoK for reducing [RelECDSA] -> ([RelCSchnorr] x [RelPedersen])
-//!
-//! We use a single limb representation in circuit
+//! CSchnorr RoK for reducing [RelECDSA] -> [RelCSchnorr]
 
 use ark_std::{end_timer, start_timer};
 use ff::{Field, PrimeField};
@@ -27,21 +25,20 @@ use crate::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-/// CSchnorr RoK for reducing [RelECDSA] -> ([RelCSchnorr] x [RelPedersen])
-pub struct CSchnorrRoKProof<C, const SEC_PARAM_BYTES: usize>
+/// CSchnorr RoK for reducing [RelECDSA] -> [RelCSchnorr]
+pub struct CSchnorrRoKProof<C, const SEC_PARAM_BYTES: usize, const L: usize>
 where
     C: CurveAffine,
     C::ScalarExt:
         PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
 {
-    // Commitment to the first message R
-    // Always given as a single compressed commitment
-    C_R: C,
+    // Commitments to the first message R
+    C_R: Vec<C>,
     // schnorr protocol response
     response: Fq,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Clone)]
 /// L is the number of limbs to represent P256 as a C scalar
 pub struct CSchnorrRoK<C, const SEC_PARAM_BYTES: usize, const L: usize>
 where
@@ -49,11 +46,11 @@ where
     C::ScalarExt: PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>
         + EndianRepr,
 {
-    /// the generator(s) used to compute commitment to first message.
-    pub(crate) G_R: Vec<C>,
-    /// the generator(s) used to compute commitment to the public key.
-    pub(crate) G_Q: Vec<C>,
-    /// the generator used for hiding
+    /// the generators used to compute commitment to first message R.
+    pub(crate) G_R: [C; L],
+    /// the generators used to compute commitment to the public key.
+    pub(crate) G_Q: [C; L],
+    /// the (common) generators used for hiding
     pub(crate) H: C,
 }
 
@@ -63,13 +60,13 @@ where
     C::ScalarExt: PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>
         + EndianRepr,
 {
-    /// Computes the first message of Committed Schnorr consisting of a
-    /// commitment to R=rK.
+    /// Computes the first message of Committed Schnorr consisting of
+    /// commitment(s) to R=rK.
     fn compute_first_message<R>(
         &self,
         K: &Secp256r1Affine,
         rng: &mut R,
-    ) -> Result<(C, Secp256r1Affine, Fq, C::ScalarExt), PopError>
+    ) -> Result<([C; L], Secp256r1Affine, Fq, [C::ScalarExt; L]), PopError>
     where
         R: RngCore + CryptoRng,
     {
@@ -78,18 +75,16 @@ where
         let r = Fq::random(&mut *rng);
         let R = K * r;
 
-        // 2. convert R.x to Vec<C::Scalar>
-        let mut scalars = fp_to_scalars::<C, L>(&R.to_affine().x)?.to_vec();
-
-        // 3. compute commitment to Rx_scalars
+        // 2. compute commitments to Rx_scalars
         // sample randomness
-        let rhoR = C::ScalarExt::random(&mut *rng);
-        scalars.push(rhoR);
-        // compute the commitment
-        let bases = [self.G_R.as_slice(), &[self.H]].concat();
-        let C_R = msm_function(&scalars, &bases);
+        let rhoR = (0..L)
+            .map(|_| C::ScalarExt::random(&mut *rng))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        let Cs = RelCSchnorr::create_commitments(&R.into(), &rhoR, &self.G_R, &self.H);
 
-        Ok((C_R.into(), R.into(), r, rhoR))
+        Ok((Cs.into(), R.into(), r, rhoR))
     }
 
     /// Computes the verifier challenge
@@ -107,8 +102,8 @@ where
         rs: &<Self as RoK>::RelationSource,
         proof: &<Self as RoK>::Proof,
         c: Fq,
-        witness: Option<(RelECDSAWitness<C, L>, C::ScalarExt, Secp256r1Affine)>,
-    ) -> RelCSchnorr<C, SEC_PARAM_BYTES, L, 1> {
+        witness: Option<(RelECDSAWitness<C, L>, [C::ScalarExt; L], Secp256r1Affine)>,
+    ) -> RelCSchnorr<C, L> {
         // The underlying relation is knowledge of z s.t.
         // zK = Q + m K.x ^{-1} (<==> (z,K) valid on m under Q)
         //
@@ -125,46 +120,32 @@ where
 
         // the commitment key consists of the concatenaation of the two keys
         let cschnorr_pp = RelCSchnorrParams {
-            ck: [self.G_R.as_slice(), self.G_Q.as_slice(), &[self.H]].concat(),
+            ck_R: self.G_R,
+            ck_Q: self.G_Q,
+            h: self.H,
         };
+
         // T = sK - cmK.x^{-1}P
         // C = \sum C_Qi + C_R
         let P = rs.params().ecdsa().pp;
         let Kx_inv = ECDSA::p256_to_scalar(rs.statement().k()).invert().unwrap();
         let T = rs.statement().k() * proof.response - P * (rs.statement().m() * Kx_inv);
 
-        // compute compressed commitment to Q
-        let C_Q = rs.statement().cx().iter().fold(C::identity().to_curve(), |acc, &com| acc + com);
-        // compute compressed commitment to R
-        let C = (C_Q + proof.C_R).into();
-        let cschnorr_x = RelCSchnorrStatement::<C, SEC_PARAM_BYTES> { C, T: T.into(), c };
+        // compute commitments to Q
+        let cschnorr_x = RelCSchnorrStatement::<C, L> {
+            CQ: *rs.statement().cx(),
+            CR: proof.C_R.clone().try_into().unwrap(),
+            T: T.into(),
+            c,
+        };
 
         let cschnorr_w = witness.map(|(w, rho_R, R)| {
             // the combined randomness for C_Q
-            let rho_Q: C::ScalarExt = w.rhox().iter().sum();
-            RelCSchnorrWitness::new(R, *w.q(), [rho_Q + rho_R])
+            let rho_Q = w.rhox();
+            RelCSchnorrWitness::new(R, *w.q(), rho_R, *rho_Q)
         });
 
         RelCSchnorr::new(cschnorr_pp, cschnorr_x, cschnorr_w)
-    }
-
-    /// Given the interaction, computes the Pedersen statement/witness
-    pub(crate) fn get_pedersen_relation(
-        &self,
-        proof: &<Self as RoK>::Proof,
-        witness: Option<(C::ScalarExt, Secp256r1Affine)>,
-    ) -> RelPedersen<C> {
-        let pedersen_pp = RelPedersenParams {
-            ck: [self.G_R.as_slice(), &[self.H]].concat(),
-        };
-        let pedersen_x = RelPedersenStatement { C: proof.C_R };
-
-        let pedersen_w = witness.map(|(rho_R, R)| {
-            let mut m = fp_to_scalars::<C, L>(&R.x).unwrap().to_vec();
-            m.push(rho_R);
-            RelPedersenWitness { m }
-        });
-        RelPedersen::new(pedersen_pp, pedersen_x, pedersen_w)
     }
 }
 
@@ -175,9 +156,8 @@ where
         + EndianRepr,
 {
     type RelationSource = RelECDSA<C, L>;
-    type RelationTarget =
-        RelationProduct<RelCSchnorr<C, SEC_PARAM_BYTES, L, 1>, RelPedersen<C>, PopError>;
-    type Proof = CSchnorrRoKProof<C, SEC_PARAM_BYTES>;
+    type RelationTarget = RelCSchnorr<C, L>;
+    type Proof = CSchnorrRoKProof<C, SEC_PARAM_BYTES, L>;
     type Error = PopError;
 
     fn label() -> String {
@@ -219,7 +199,8 @@ where
         // sample the first message
         let (C_R, R, r, rho_R) = self.compute_first_message(rs.statement().k(), rng)?;
 
-        transcript.append_point(b"R Commitment", &C_R);
+        // hash the commitments to R
+        C_R.iter().for_each(|C| transcript.append_point(b"R Commitment", C));
 
         // get challenge
         let c = CSchnorrRoK::<C, SEC_PARAM_BYTES, L>::get_challenge(transcript);
@@ -235,13 +216,13 @@ where
         transcript.append_scalar(b"Prover response", &s);
 
         // compute the RoK proof
-        let proof = CSchnorrRoKProof { C_R, response: s };
+        let proof = CSchnorrRoKProof {
+            C_R: C_R.to_vec(),
+            response: s,
+        };
 
-        let rcschnorr =
-            self.get_cschnorr_relation(rs, &proof, c, Some((witness.clone(), rho_R, R)));
-        let rpedersen = self.get_pedersen_relation(&proof, Some((rho_R, R)));
+        let rt = self.get_cschnorr_relation(rs, &proof, c, Some((witness.clone(), rho_R, R)));
 
-        let rt = RelationProduct::from_parts(rcschnorr, rpedersen);
         end_timer!(t);
         Ok((rt, proof))
     }
@@ -256,17 +237,15 @@ where
 
         self.initialize(rs, transcript);
 
-        transcript.append_point(b"R Commitment", &proof.C_R);
+        proof.C_R.iter().for_each(|C| transcript.append_point(b"R Commitment", C));
+
         // get challenge
         let c = CSchnorrRoK::<C, SEC_PARAM_BYTES, L>::get_challenge(transcript);
         // append s to the transcript to allow composition
         transcript.append_scalar(b"Prover response", &proof.response);
 
         // construct the output statements
-        let rcschnorr = self.get_cschnorr_relation(rs, proof, c, None);
-        let rpedersen = self.get_pedersen_relation(proof, None);
-
-        let rt = RelationProduct::from_parts(rcschnorr, rpedersen);
+        let rt = self.get_cschnorr_relation(rs, proof, c, None);
 
         end_timer!(t);
 
@@ -312,7 +291,11 @@ mod tests {
         let recdsa =
             sample_random_ecdsa_instance_with_key::<C, L>(G_Q.clone().try_into().unwrap(), H);
 
-        let rok = CSchnorrRoK::<C, 16, L> { G_R, G_Q, H };
+        let rok = CSchnorrRoK::<C, 16, L> {
+            G_R: G_R.try_into().unwrap(),
+            G_Q: G_Q.try_into().unwrap(),
+            H,
+        };
 
         let mut transcript_prover = Transcript::new(b"CSchnorr RoK");
         let (rt_p, proof) = rok.reduce(&mut transcript_prover, &recdsa, &mut OsRng).unwrap();

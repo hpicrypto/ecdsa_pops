@@ -1,4 +1,4 @@
-//! [RoK] reducing [RelCSchnorr] -> [RelPedersen]
+//! [RoK] reducing [RelCSchnorrCompact] -> [RelTrivial]
 //!
 //! The RoK Runs the circuit proofs and reduces to verifying the prover knows a
 //! valid opening of the committed inputs
@@ -8,21 +8,17 @@ use ark_std::{end_timer, start_timer};
 use ff::PrimeField;
 use halo2curves::{secp256r1::Secp256r1Affine, t256::T256Affine, CurveAffine};
 use r1csipa::{R1CSProof, R1CSProofParams, TranscriptProtocol};
-use rok::{Relation, RoK};
+use rok::{RelTrivial, Relation, RoK};
 
 use crate::{
     circuit_native::{CSchnorrCircuit, CschnorrCircuitPrivateInputs, CschnorrCircuitPublicInputs},
     errors::PopError,
-    relations::{
-        rcshnorr::RelCSchnorr,
-        rpedersen::{RelPedersen, RelPedersenParams, RelPedersenStatement, RelPedersenWitness},
-    },
-    utils::fp_to_fr,
+    relations::rcschnorr_compact::RelCSchnorrCompact,
 };
 
-/// [RoK] for reducing [RelCSchnorr] -> [RelPedersen] using a circuit proof
+/// [RoK] for reducing [RelCSchnorrCompact] -> [RelPedersen] using a circuit proof
 #[derive(Clone)]
-pub struct CircuitRoK<C, const SEC_PARAM_BYTES: usize>
+pub struct NativeCircuitRoK<C, const SEC_PARAM_BYTES: usize>
 where
     C: CurveAffine,
     C::ScalarExt:
@@ -34,7 +30,7 @@ where
     pub(crate) ck_ci: Vec<C>,
 }
 
-impl<const SEC_PARAM_BYTES: usize> CircuitRoK<T256Affine, SEC_PARAM_BYTES> {
+impl<const SEC_PARAM_BYTES: usize> NativeCircuitRoK<T256Affine, SEC_PARAM_BYTES> {
     /// hash the circuit parameters
     pub(crate) fn hash_params(
         params: &R1CSProofParams<T256Affine>,
@@ -61,10 +57,10 @@ impl<const SEC_PARAM_BYTES: usize> CircuitRoK<T256Affine, SEC_PARAM_BYTES> {
     }
 }
 
-impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTES> {
+impl<const SEC_PARAM_BYTES: usize> RoK for NativeCircuitRoK<T256Affine, SEC_PARAM_BYTES> {
     /// one field element is enough to encode P256 bases to T256 Scalar
-    type RelationSource = RelCSchnorr<T256Affine, SEC_PARAM_BYTES, 1, 1>;
-    type RelationTarget = RelPedersen<T256Affine>;
+    type RelationSource = RelCSchnorrCompact<T256Affine, 1, 1>;
+    type RelationTarget = RelTrivial<Self::Error>;
     type Proof = R1CSProof<T256Affine>;
     type Error = PopError;
 
@@ -87,12 +83,12 @@ impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTE
     where
         R: rand_core::RngCore + rand_core::CryptoRng,
     {
-        let t = start_timer!(|| format!("Circuit RoK ({}) Prover", rs.params().ck.len()));
+        let t = start_timer!(|| format!("Native Circuit RoK Prover"));
 
         self.initialize(rs, transcript);
 
         let witness = rs.witness().as_ref().ok_or_else(|| {
-            PopError::MissingWitness(RelCSchnorr::<T256Affine, SEC_PARAM_BYTES, 1, 1>::label())
+            PopError::MissingWitness(RelCSchnorrCompact::<T256Affine, 1, 1>::label())
         })?;
 
         // create the circuit and hash the parameters
@@ -107,21 +103,7 @@ impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTE
         // prove the circuit and get the committed inptus
         let proof = circuit.cshnorr_circuit_prove(&mut params, &shape, &self.ck_ci, transcript);
 
-        // create the target statement
-        let pp = RelPedersenParams {
-            ck: rs.params().ck.clone(),
-        };
-        let x = RelPedersenStatement {
-            C: rs.statement().C,
-        };
-        let w = RelPedersenWitness {
-            m: vec![
-                fp_to_fr(&witness.R.x),
-                fp_to_fr(&witness.Q.x),
-                witness.rho[0],
-            ],
-        };
-        let rt = RelPedersen::new(pp, x, Some(w));
+        let rt = RelTrivial::default();
 
         end_timer!(t);
 
@@ -134,7 +116,7 @@ impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTE
         rs: &Self::RelationSource,
         proof: &Self::Proof,
     ) -> Result<Self::RelationTarget, Self::Error> {
-        let t = start_timer!(|| format!("Circuit RoK ({}) Verifier", rs.params().ck.len()));
+        let t = start_timer!(|| format!("Native Circuit RoK Verifier"));
 
         self.initialize(rs, transcript);
 
@@ -155,14 +137,7 @@ impl<const SEC_PARAM_BYTES: usize> RoK for CircuitRoK<T256Affine, SEC_PARAM_BYTE
             transcript,
         )?;
 
-        // create the target statement of RelPedersen
-        let pp = RelPedersenParams {
-            ck: rs.params().ck.clone(),
-        };
-        let x = RelPedersenStatement {
-            C: rs.statement().C,
-        };
-        let rt = RelPedersen::new(pp, x, None);
+        let rt = RelTrivial::default();
 
         end_timer!(t);
 
@@ -185,10 +160,14 @@ mod tests {
         circuit_native::{utils::biguint_to_scalar, CSchnorrCircuit},
         errors::PopError,
         relations::{
+            rcschnorr_compact::{
+                RelCSchnorrCompact, RelCSchnorrCompactParams, RelCSchnorrCompactStatement,
+                RelCSchnorrCompactWitness,
+            },
             rcshnorr::{RelCSchnorr, RelCSchnorrParams, RelCSchnorrStatement, RelCSchnorrWitness},
             tests::pedersen_key,
         },
-        roks::{native_circuit_rok::CircuitRoK, pedersen_rok::PedersenRoK},
+        roks::native_circuit_rok::NativeCircuitRoK,
         utils::{fp_to_fr, Fp, Fq},
     };
 
@@ -201,7 +180,7 @@ mod tests {
     // sample a random instance
     fn sample_random_relation<const SEC_PARAM_BYTES: usize>(
         ck_ci: &[T256Affine],
-    ) -> RelCSchnorr<T256Affine, SEC_PARAM_BYTES, 1, 1> {
+    ) -> RelCSchnorrCompact<T256Affine, 1, 1> {
         // sample a random challenge of SEC_PARAM_BYTES  bytes
         let mut bytes = [0u8; SEC_PARAM_BYTES];
         OsRng.fill_bytes(&mut bytes);
@@ -219,14 +198,17 @@ mod tests {
         let scalars = [R.x, Q.x, rho].map(|s| fp_to_fr(&s));
         let C = msm_function(&scalars, ck_ci).into();
 
-        let pp = RelCSchnorrParams { ck: ck_ci.to_vec() };
-        let x = RelCSchnorrStatement { C, c, T };
-        let w = RelCSchnorrWitness {
+        let ck_R = [ck_ci[0]];
+        let ck_Q = [ck_ci[1]];
+        let h = [ck_ci[2]];
+        let pp = RelCSchnorrCompactParams { ck_R, ck_Q, h };
+        let x = RelCSchnorrCompactStatement { C, c, T };
+        let w = RelCSchnorrCompactWitness {
             R,
             Q,
             rho: [fp_to_fr(&rho)],
         };
-        RelCSchnorr::new(pp, x, Some(w))
+        RelCSchnorrCompact::new(pp, x, Some(w))
     }
 
     #[test]
@@ -234,13 +216,13 @@ mod tests {
         let universal_params = CSchnorrCircuit::<16>::universal_parameters("test circuit rok");
         let ck_ci = pedersen_key::<T256Affine>(3, "ck_ci");
         let rs_prover = sample_random_relation::<16>(&ck_ci);
-        let rs_verifier = RelCSchnorr::<T256Affine, 16, 1, 1>::new(
+        let rs_verifier = RelCSchnorrCompact::<T256Affine, 1, 1>::new(
             rs_prover.params().clone(),
             rs_prover.statement().clone(),
             None,
         );
 
-        let circuit_rok = CircuitRoK {
+        let circuit_rok = NativeCircuitRoK::<_, 16> {
             universal_params,
             ck_ci,
         };
@@ -255,40 +237,5 @@ mod tests {
         let mut transcript_verifier = Transcript::new(b"circuit_rok test");
         let result = circuit_rok.reduce_statement(&mut transcript_verifier, &rs_verifier, &proof);
         assert!(result.is_ok(), "reduce failed: {:?}", result);
-    }
-
-    #[test]
-    fn test_circuit_rok_with_opening() {
-        let universal_params =
-            CSchnorrCircuit::<16>::universal_parameters("test circuit rok with opening");
-        let ck_ci = pedersen_key::<T256Affine>(3, "ck_ci");
-        let rs_prover = sample_random_relation::<16>(&ck_ci);
-        let rs_verifier = RelCSchnorr::<T256Affine, 16, 1, 1>::new(
-            rs_prover.params().clone(),
-            rs_prover.statement().clone(),
-            None,
-        );
-
-        let circuit_rok = CircuitRoK::<T256Affine, 16> {
-            universal_params,
-            ck_ci,
-        };
-        let pedersen_rok = PedersenRoK::<T256Affine> {
-            ck: rs_verifier.params().ck.clone(),
-        };
-        let circuit_nizk = rok_compose!(
-            PopError;
-            ((pedersen_rok) o (circuit_rok))
-        );
-
-        let mut transcript_prover = Transcript::new(b"circuit_nizk test");
-        let proof = circuit_nizk.prove(&mut transcript_prover, &rs_prover, &mut OsRng).unwrap();
-
-        let proof_bytes = bincode::serialize(&proof).unwrap();
-        println!("Circuit RoK + opening proof size:: {}b", proof_bytes.len());
-
-        let mut transcript_verifier = Transcript::new(b"circuit_nizk test");
-        let result = circuit_nizk.verify(&mut transcript_verifier, &rs_verifier, &proof);
-        assert!(result.is_ok(), "nizk failed: {:?}", result);
     }
 }
