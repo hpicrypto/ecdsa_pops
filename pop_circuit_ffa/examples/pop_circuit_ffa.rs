@@ -92,9 +92,9 @@ fn run_proof<Rel>(
     let vk = midnight_zk_stdlib::setup_vk(&srs, &relation);
     println!("VK generation:      {:?}", t_vk.elapsed());
 
-    let pk = midnight_zk_stdlib::setup_pk(&relation, &vk);
-
     let t_prove = Instant::now();
+    let vk = midnight_zk_stdlib::setup_vk(&srs, &relation);
+    let pk = midnight_zk_stdlib::setup_pk(&relation, &vk);
     let proof = midnight_zk_stdlib::prove::<Rel, blake2b_simd::State>(
         &srs,
         &pk,

@@ -1,7 +1,10 @@
 //! Defintions for various relations used
 
-/// rchsnorr EC equation verifies
+/// rchsnorr relation
 pub(crate) mod rcshnorr;
+
+/// rchsnorr relation with compact commitments
+pub(crate) mod rcschnorr_compact;
 
 /// dlog equality across different groups
 pub(crate) mod rdleq;

@@ -12,6 +12,10 @@ use rand_core::{OsRng, RngCore};
 use rok::{Relation, RelationProduct};
 
 use super::{
+    rcschnorr_compact::{
+        RelCSchnorrCompact, RelCSchnorrCompactParams, RelCSchnorrCompactStatement,
+        RelCSchnorrCompactWitness,
+    },
     rpa::{RelPA, RelPAParams, RelPAStatement, RelPAWitness},
     rsm::{RelSM, RelSMParams, RelSMStatement, RelSMWitness},
 };
@@ -64,16 +68,17 @@ fn c_from_bytes<const SEC_PARAM_BYTES: usize>(bytes: [u8; SEC_PARAM_BYTES]) -> F
 
 /// sample a random instance of [RelCSchnorr]
 pub(crate) fn sample_random_cschnorr_instance<CCom, const SEC_PARAM_BYTES: usize, const L: usize>(
-) -> RelCSchnorr<CCom, SEC_PARAM_BYTES, L, 1>
+) -> RelCSchnorr<CCom, L>
 where
     CCom: CurveAffine,
     CCom::ScalarExt:
         PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
 {
     // sample a commitment key
-    let pp = RelCSchnorrParams {
-        ck: pedersen_key::<CCom>(2 * L + 1, "sample_random_cschnorr_instance"),
-    };
+    let ck_R = pedersen_key::<CCom>(L, "ck_R").try_into().unwrap();
+    let ck_Q = pedersen_key::<CCom>(L, "ck_L").try_into().unwrap();
+    let h = pedersen_key::<CCom>(1, "H")[0];
+    let pp = RelCSchnorrParams { ck_R, ck_Q, h };
 
     // sample a random challenge of SEC_PARAM_BYTES  bytes
     let mut bytes = [0u8; SEC_PARAM_BYTES];
@@ -81,22 +86,82 @@ where
     let c = c_from_bytes::<SEC_PARAM_BYTES>(bytes);
 
     // sample commitment randomness
-    let rho = <CCom::ScalarExt as Field>::random(OsRng);
+    let rhoR = (0..L)
+        .map(|_| <CCom::ScalarExt as Field>::random(OsRng))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    let rhoQ = (0..L)
+        .map(|_| <CCom::ScalarExt as Field>::random(OsRng))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
 
     // sample random group elements R, Q
     let R = Secp256r1Affine::random(OsRng);
     let Q = Secp256r1Affine::random(OsRng);
 
-    let w = RelCSchnorrWitness::<CCom, 1>::new(R, Q, [rho]);
+    let w = RelCSchnorrWitness::<CCom, L>::new(R, Q, rhoR, rhoQ);
 
     // compute a satisfying T
     let T = ((R * c) + Q).into();
 
     // compute commitment
-    let C = RelCSchnorr::<CCom, SEC_PARAM_BYTES, L, 1>::create_commitment(&pp, &w).unwrap();
-    let x = RelCSchnorrStatement::<CCom, SEC_PARAM_BYTES> { C, T, c };
+    let CQ = RelCSchnorr::<CCom, L>::create_commitments(&Q, &rhoQ, &pp.ck_Q, &pp.h);
+    let CR = RelCSchnorr::<CCom, L>::create_commitments(&R, &rhoR, &pp.ck_R, &pp.h);
+
+    let x = RelCSchnorrStatement::<CCom, L> { CQ, CR, T, c };
 
     RelCSchnorr::new(pp, x, Some(w))
+}
+
+/// sample a random instance of [RelCSchnorrComact]
+pub(crate) fn sample_random_cschnorr_compact_instance<
+    CCom,
+    const SEC_PARAM_BYTES: usize,
+    const L: usize,
+    const B: usize,
+>() -> RelCSchnorrCompact<CCom, L, B>
+where
+    CCom: CurveAffine,
+    CCom::ScalarExt:
+        PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
+{
+    // sample a commitment key
+    let ck_R = pedersen_key::<CCom>(L, "ck_R").try_into().unwrap();
+    let ck_Q = pedersen_key::<CCom>(L, "ck_L").try_into().unwrap();
+    let h = pedersen_key::<CCom>(B, "H").try_into().unwrap();
+    let pp = RelCSchnorrCompactParams { ck_R, ck_Q, h };
+
+    // sample a random challenge of SEC_PARAM_BYTES  bytes
+    let mut bytes = [0u8; SEC_PARAM_BYTES];
+    OsRng.fill_bytes(&mut bytes);
+    let c = c_from_bytes::<SEC_PARAM_BYTES>(bytes);
+
+    // sample commitment randomness
+    let rho = (0..B)
+        .map(|_| <CCom::ScalarExt as Field>::random(OsRng))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+    // sample random group elements R, Q
+    let R = Secp256r1Affine::random(OsRng);
+    let Q = Secp256r1Affine::random(OsRng);
+
+    let w = RelCSchnorrCompactWitness::<CCom, L, B>::new(R, Q, rho);
+
+    // compute a satisfying T
+    let T = ((R * c) + Q).into();
+
+    // compute commitment
+    let C = RelCSchnorrCompact::<CCom, L, B>::create_commitment(
+        &R, &Q, &rho, &pp.ck_Q, &pp.ck_R, &pp.h,
+    );
+
+    let x = RelCSchnorrCompactStatement::<CCom, L> { C, T, c };
+
+    RelCSchnorrCompact::new(pp, x, Some(w))
 }
 
 /// sample a random instance of [RelECDSA]
@@ -258,6 +323,10 @@ where
     let result = rcschnor.in_relation();
     assert!(result.is_ok(), "not in relation: {:?}", result);
 
+    let rcschnor_compact = sample_random_cschnorr_compact_instance::<CCom, 16, L, 10>();
+    let result = rcschnor.in_relation();
+    assert!(result.is_ok(), "not in relation: {:?}", result);
+
     // RelECDSA
     let recdsa = sample_random_ecdsa_instance::<CCom, L>();
     let result = recdsa.in_relation();
@@ -322,7 +391,7 @@ fn test_relation_product() {
     let recdsa = sample_random_ecdsa_instance::<T256Affine, 2>();
 
     let product_valid = RelationProduct::<
-        RelCSchnorr<T256Affine, 16, 1, 1>,
+        RelCSchnorr<T256Affine, 1>,
         RelECDSA<T256Affine, 2>,
         PopError,
     >::from_parts(rcschnorr, recdsa);
