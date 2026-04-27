@@ -2,7 +2,8 @@
 
 use criterion::Criterion;
 use ecdsa_pops::{
-    utils::ecdsa::ECDSA, RelECDSA, RelECDSAParams, RelECDSAStatement, RelECDSAWitness,
+    utils::ecdsa::ECDSA, PoPNativeNizk, RelECDSA, RelECDSAParams, RelECDSAStatement,
+    RelECDSAWitness,
 };
 use ff::Field;
 use halo2curves::{
