@@ -89,7 +89,6 @@ fn run_proof<Rel>(
     let srs = srs_for_test(&relation, Some(k));
 
     let t_vk = Instant::now();
-    let vk = midnight_zk_stdlib::setup_vk(&srs, &relation);
     println!("VK generation:      {:?}", t_vk.elapsed());
 
     let t_prove = Instant::now();

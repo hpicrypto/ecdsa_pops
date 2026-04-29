@@ -13,13 +13,25 @@ group = "0.13"
 ff = "0.13"
 rand = "0.8"
 
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+
 [features]
+default = ["single-h-commitment"]
 single-h-commitment = [
-    "midnight-zk-stdlib/single-h-commitment",
-    "midnight-proofs/single-h-commitment",
-    "midnight-circuits/single-h-commitment",
+  "midnight-zk-stdlib/single-h-commitment",
+  "midnight-proofs/single-h-commitment",
+  "midnight-circuits/single-h-commitment",
 ]
 
 [[example]]
 name = "pop_circuit_ffa"
 path = "examples/pop_circuit_ffa.rs"
+
+[[bench]]
+name = "ffa_circuit_daa"
+harness = false
+
+[[bench]]
+name = "ffa_circuit_w"
+harness = false

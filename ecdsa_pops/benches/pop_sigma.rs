@@ -70,7 +70,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         r_prover.statement().clone(),
         None,
     );
-    let sample_size = 10;
+    let sample_size = 50;
     // prover time
     let mut prover_group = c.benchmark_group("pop-sigma prover");
     prover_group.sample_size(sample_size);
