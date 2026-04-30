@@ -1,13 +1,12 @@
-use pop_circuit_ffa::{EcdsaPoPP256, EcdsaPoPP256Daa, B_FACTORS};
 use std::time::Instant;
 
 use ff::Field;
 use group::Group;
 use midnight_circuits::CircuitField;
-
 use midnight_curves::p256::{Fq as P256Scalar, P256};
 use midnight_proofs::{plonk::commit_to_instances, poly::kzg::KZGCommitmentScheme};
 use midnight_zk_stdlib::{cost_model, utils::plonk_api::srs_for_test, Relation};
+use pop_circuit_ffa::{EcdsaPoPP256, EcdsaPoPP256Daa, B_FACTORS};
 use rand::{rngs::OsRng, Rng};
 
 type F = midnight_curves::Fq;

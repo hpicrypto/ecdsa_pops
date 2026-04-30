@@ -1,4 +1,5 @@
-//! CSchnorr RoK for reducing [RelCschnorr] -> [RelCSchnorrCompact] in T256 curve
+//! CSchnorr RoK for reducing [RelCschnorr] -> [RelCSchnorrCompact] in T256
+//! curve
 
 use ark_std::{end_timer, start_timer};
 use halo2curves::{group::Curve, t256::T256Affine};
@@ -8,6 +9,7 @@ use rand_core::{CryptoRng, RngCore};
 use rok::{Nizk, Relation, RoK};
 use serde::{Deserialize, Serialize};
 
+use super::pedersen_rok::{PedersenRoK, PedersenRoKProof};
 use crate::{
     errors::PopError,
     relations::{
@@ -21,10 +23,9 @@ use crate::{
     utils::fp_to_fr,
 };
 
-use super::pedersen_rok::{PedersenRoK, PedersenRoKProof};
-
 #[derive(Debug, Serialize, Deserialize)]
-/// CSchnorr RoK for reducing [RelCschnorr] -> [RelCSchnorrCompact] in T256 curve
+/// CSchnorr RoK for reducing [RelCschnorr] -> [RelCSchnorrCompact] in T256
+/// curve
 pub struct CSchnorrNativeRoKProof {
     pedersen_proof: PedersenRoKProof<T256Affine>,
 }

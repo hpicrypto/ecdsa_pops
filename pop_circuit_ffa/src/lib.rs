@@ -7,17 +7,15 @@
 //! Two scalar-multiplication strategies are compiled and compared:
 //!
 //! * **Windowed (WS=4)** — `msm_by_fixed_le_bits`: packs bits into 4-bit
-//!   windows, always processes all windows.  Cost: n doublings + ~40 adds
-//!   for n = 100 bits.
+//!   windows, always processes all windows.  Cost: n doublings + ~40 adds for n
+//!   = 100 bits.
 //!
-//! * **Double-and-add** — `mul_by_u128`: processes one bit at a time,
-//!   adding `base` only for set bits.  Cost: n doublings + popcount(c) adds.
+//! * **Double-and-add** — `mul_by_u128`: processes one bit at a time, adding
+//!   `base` only for set bits.  Cost: n doublings + popcount(c) adds.
 //!   Competitive when popcount(c) < ~40.
 //!
 //! Instance:  T: P256
 //! Witness:   (Q: P256,  R: P256, blinders)
-
-use midnight_curves::p256::{affine_x, P256Affine};
 
 use ff::PrimeField;
 use midnight_circuits::{
@@ -29,8 +27,7 @@ use midnight_circuits::{
     types::{AssignedForeignPoint, AssignedNative, Instantiable},
     CircuitField,
 };
-
-use midnight_curves::p256::P256;
+use midnight_curves::p256::{affine_x, P256Affine, P256};
 use midnight_proofs::{
     circuit::{Layouter, Value},
     plonk::Error,
@@ -42,8 +39,9 @@ type F = midnight_curves::Fq;
 /// number of needed blinding factors
 pub const B_FACTORS: usize = 8;
 
-// helper function that decomposes a p256 point to two Field elements by expressing its x-coordinate
-// to two limbs of 128 bits. Returns the limbs represented in the field.
+// helper function that decomposes a p256 point to two Field elements by
+// expressing its x-coordinate to two limbs of 128 bits. Returns the limbs
+// represented in the field.
 //
 // TODO: make this generic
 fn p256_to_limbs<F: CircuitField>(q: &P256Affine) -> (F, F) {
@@ -86,7 +84,8 @@ fn format_committed_instances_helper(q: &P256, r: &P256, blinders: &[F; B_FACTOR
     .collect()
 }
 
-// ── Windowed relation (WS=4, c as public input) ───────────────────────────────
+// ── Windowed relation (WS=4, c as public input)
+// ───────────────────────────────
 
 /// Parameterless relation: c is a public input, so a single VK covers all
 /// challenge values.  Instance = (T, c) where c is a bounded u128 scalar.
@@ -191,7 +190,8 @@ impl<const NB_BITS_C: usize> Relation for EcdsaPoPP256<NB_BITS_C> {
     }
 }
 
-// ── Double-and-add relation ───────────────────────────────────────────────────
+// ── Double-and-add relation
+// ───────────────────────────────────────────────────
 
 #[derive(Clone)]
 pub struct EcdsaPoPP256Daa {

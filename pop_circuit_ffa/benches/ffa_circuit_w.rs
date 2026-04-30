@@ -1,11 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-
-use pop_circuit_ffa::{EcdsaPoPP256, B_FACTORS};
-
 use ff::Field;
 use group::Group;
 use midnight_circuits::CircuitField;
-
 use midnight_curves::{
     p256::{Fq as P256Scalar, P256},
     Bls12, G1Projective,
@@ -17,6 +13,7 @@ use midnight_proofs::{
 use midnight_zk_stdlib::{
     cost_model, utils::plonk_api::srs_for_test, MidnightPK, MidnightVK, Relation,
 };
+use pop_circuit_ffa::{EcdsaPoPP256, B_FACTORS};
 use rand::{rngs::OsRng, Rng};
 
 type F = midnight_curves::Fq;

@@ -1,7 +1,8 @@
 //! [RoK] nizk to change curve.
 //! It is a [RoK]: [RelECDSA]<BLS,2> -> [RelECDSA]<T256,1>
 
-// TODO: It would be nice to refactor this and abstract parts/remove repetitive code
+// TODO: It would be nice to refactor this and abstract parts/remove repetitive
+// code
 
 use ark_std::{end_timer, start_timer, One};
 use ff::Field;

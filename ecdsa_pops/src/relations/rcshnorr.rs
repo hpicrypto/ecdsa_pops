@@ -1,10 +1,11 @@
 //! RelCSchnorr:
 //!     - params: pedersen commitment key in (Generic) Curve
-//!     - statement T (in [Secp256r1Affine]), c (in [Fq]),
-//!       C (in generic [CurveAffine])
+//!     - statement T (in [Secp256r1Affine]), c (in [Fq]), C (in generic
+//!       [CurveAffine])
 //!     - witness R, Q (in [Secp256r1Affine]), rho (in generic C scalar field)
 //!     s.t.
-//!     1. CR = Commit(ck_R, R.x; rR), CR = Commit(ck_Q, Q.x; rQ),  where ck_R, ck_Q are
+//!     1. CR = Commit(ck_R, R.x; rR), CR = Commit(ck_Q, Q.x; rQ),  where ck_R,
+//!        ck_Q are
 //!     Pedersen keys and the commitments to Q, R are in limbs.
 //!     2. T = cR + Q (over [Secp256r1Affine]) where
 //!

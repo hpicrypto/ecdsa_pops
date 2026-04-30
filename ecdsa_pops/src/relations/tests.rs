@@ -45,7 +45,8 @@ pub(crate) fn pedersen_key<CCom: CurveAffine>(key_size: usize, label: &'static s
         .collect()
 }
 
-/// Creates a random pedersen commitment key of size L with the same g for each component
+/// Creates a random pedersen commitment key of size L with the same g for each
+/// component
 pub(crate) fn pedersen_key_same_g<CCom: CurveAffine>(
     key_size: usize,
     label: &'static str,

@@ -1,11 +1,9 @@
+use std::collections::HashMap;
+
 use criterion::{criterion_group, criterion_main, Criterion};
-
-use pop_circuit_ffa::{EcdsaPoPP256Daa, B_FACTORS};
-
 use ff::Field;
 use group::Group;
 use midnight_circuits::CircuitField;
-
 use midnight_curves::{
     p256::{Fq as P256Scalar, P256},
     Bls12, G1Projective,
@@ -15,8 +13,8 @@ use midnight_proofs::{
     poly::kzg::{params::ParamsKZG, KZGCommitmentScheme},
 };
 use midnight_zk_stdlib::{cost_model, utils::plonk_api::srs_for_test, Relation};
+use pop_circuit_ffa::{EcdsaPoPP256Daa, B_FACTORS};
 use rand::{rngs::OsRng, Rng};
-use std::collections::HashMap;
 
 type F = midnight_curves::Fq;
 
@@ -108,7 +106,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     unique_ks.dedup();
     let srs_map: HashMap<u32, ParamsKZG<Bls12>> = unique_ks
         .into_iter()
-        .map(|k| (k, srs_for_test(&EcdsaPoPP256Daa::new(relations[0].1), Some(k))))
+        .map(|k| {
+            (
+                k,
+                srs_for_test(&EcdsaPoPP256Daa::new(relations[0].1), Some(k)),
+            )
+        })
         .collect();
 
     // prover time

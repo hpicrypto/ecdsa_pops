@@ -16,7 +16,8 @@ use crate::{
     relations::rcschnorr_compact::RelCSchnorrCompact,
 };
 
-/// [RoK] for reducing [RelCSchnorrCompact] -> [RelPedersen] using a circuit proof
+/// [RoK] for reducing [RelCSchnorrCompact] -> [RelPedersen] using a circuit
+/// proof
 #[derive(Clone)]
 pub struct NativeCircuitRoK<C, const SEC_PARAM_BYTES: usize>
 where

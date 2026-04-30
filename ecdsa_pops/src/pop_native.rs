@@ -128,9 +128,11 @@ impl PoPNativeNizk {
         // return the composed RoK
         //
         // NOTE: We don't need to prove the last RelPedersen. In particular,
-        // - the opening of the commitment  Qx is known by the application of bls_to_tom_rok
+        // - the opening of the commitment  Qx is known by the application of
+        //   bls_to_tom_rok
         // - the opening of the commitment  Rx is known by the pedersen rok
-        // - these opening constitute an opening to the compact commitment used in the circuit
+        // - these opening constitute an opening to the compact commitment used in the
+        //   circuit
         rok_compose!(
             PopError;
             // RelECDSA<BLS> ---> RelECDSA<T256> ---> (RelCSchnorr x RelPedersen) ---> (RelPedersen x Trivial)

@@ -20,7 +20,8 @@ use crate::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-/// Group RoK for reducing [RelECDSA] (over T256) -> ([RelSM] x [RelPA]) in T256 curve
+/// Group RoK for reducing [RelECDSA] (over T256) -> ([RelSM] x [RelPA]) in T256
+/// curve
 pub struct GroupRoKProof {
     // Pedersen commitment to the value Z=zK message R
     CZx: T256Affine,
@@ -213,9 +214,8 @@ mod tests {
     use rand_core::OsRng;
     use rok::{Relation, RoK};
 
-    use crate::relations::tests::sample_random_ecdsa_instance_with_key;
-
     use super::GroupRoK;
+    use crate::relations::tests::sample_random_ecdsa_instance_with_key;
 
     #[test]
     fn group_rok() {

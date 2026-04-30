@@ -1,15 +1,15 @@
 //! RelCSchnorrCompact:
 //!
-//! The same as [`RelCschnor`] but using a compact commitment to commit to Q and R
+//! The same as [`RelCschnor`] but using a compact commitment to commit to Q and
+//! R
 //!
 //!     - params: pedersen commitment key in (Generic) Curve
-//!     - statement T (in [Secp256r1Affine]), c (in [Fq]),
-//!       C (in generic [CurveAffine])
+//!     - statement T (in [Secp256r1Affine]), c (in [Fq]), C (in generic
+//!       [CurveAffine])
 //!     - witness R, Q (in [Secp256r1Affine]), rho (in generic C scalar field)
 //!     s.t.
 //!     1. C = Commit(ck, R.x, Q.x; r1,...,rb)
 //!     2. T = cR + Q (over [Secp256r1Affine]) where
-//!
 
 use ff::PrimeField;
 use halo2curves::{group::Curve, secp256r1::Secp256r1Affine, CurveAffine};
