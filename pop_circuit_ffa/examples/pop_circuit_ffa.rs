@@ -89,11 +89,14 @@ fn run_proof<Rel>(
     let srs = srs_for_test(&relation, Some(k));
 
     let t_vk = Instant::now();
+    let vk = midnight_zk_stdlib::setup_vk(&srs, &relation);
     println!("VK generation:      {:?}", t_vk.elapsed());
 
-    let t_prove = Instant::now();
-    let vk = midnight_zk_stdlib::setup_vk(&srs, &relation);
+    let t_pk = Instant::now();
     let pk = midnight_zk_stdlib::setup_pk(&relation, &vk);
+    println!("PK generation:      {:?}", t_pk.elapsed());
+
+    let t_prove = Instant::now();
     let proof = midnight_zk_stdlib::prove::<Rel, blake2b_simd::State>(
         &srs,
         &pk,
@@ -108,6 +111,7 @@ fn run_proof<Rel>(
         t_prove.elapsed(),
         proof.len()
     );
+    println!("Full prove (including pk/vk):      {:?}", t_vk.elapsed());
 
     let c_instance = Rel::format_committed_instances(&witness);
     let commitment =
