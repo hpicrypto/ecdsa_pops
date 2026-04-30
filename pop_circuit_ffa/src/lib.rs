@@ -48,7 +48,7 @@ pub const B_FACTORS: usize = 8;
 // TODO: make this generic
 fn p256_to_limbs<F: CircuitField>(q: &P256Affine) -> (F, F) {
     // convert the point to bytes
-    let qx_bytes = &affine_x(&q).to_bytes_be().to_vec();
+    let qx_bytes = &affine_x(q).to_bytes_be().to_vec();
 
     // high limb
     let mut qx_high_bytes = [0u8; 16].to_vec();
@@ -81,7 +81,7 @@ fn format_committed_instances_helper(q: &P256, r: &P256, blinders: &[F; B_FACTOR
     ]
     .into_iter()
     // the blinding factors
-    .chain(blinders.iter().map(|r| AssignedNative::as_public_input(r)))
+    .chain(blinders.iter().map(AssignedNative::as_public_input))
     .flatten()
     .collect()
 }

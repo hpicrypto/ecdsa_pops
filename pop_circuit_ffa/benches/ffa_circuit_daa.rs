@@ -121,9 +121,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     // rows avg
     let rows_sum: usize = relations
         .iter()
-        .map(|_| {
-            let c = relations[idx % sample_size].1;
-            let rel_daa = EcdsaPoPP256Daa::new(c);
+        .map(|r| {
+            let rel_daa = EcdsaPoPP256Daa::new(r.1);
             cost_model(&rel_daa, None).rows
         })
         .sum();

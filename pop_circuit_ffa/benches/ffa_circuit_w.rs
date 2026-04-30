@@ -65,7 +65,7 @@ fn prove_w(
 ) -> Vec<u8> {
     let rel_w = EcdsaPoPP256::<NB_BITS_C>;
     midnight_zk_stdlib::prove::<EcdsaPoPP256<NB_BITS_C>, blake2b_simd::State>(
-        &srs, &pk, &rel_w, instance, *witness, rng,
+        srs, pk, &rel_w, instance, *witness, rng,
     )
     .expect("proof generation should not fail")
 }
@@ -79,7 +79,7 @@ fn verify_w(
 ) {
     midnight_zk_stdlib::verify::<EcdsaPoPP256<NB_BITS_C>, blake2b_simd::State>(
         &srs.verifier_params(),
-        &vk,
+        vk,
         instance,
         Some(commitment.into()),
         proof,
@@ -93,7 +93,7 @@ fn compute_commitment(
     witness: &(P256, P256, [F; 8]),
 ) -> G1Projective {
     let c_instance = EcdsaPoPP256::<NB_BITS_C>::format_committed_instances(witness);
-    commit_to_instances::<F, KZGCommitmentScheme<_>>(&srs, vk.vk().get_domain(), &c_instance)
+    commit_to_instances::<F, KZGCommitmentScheme<_>>(srs, vk.vk().get_domain(), &c_instance)
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
