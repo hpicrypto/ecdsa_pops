@@ -123,7 +123,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let proof = prove_w(&srs, &pk, &relation.0, &relation.1, rng);
     let com = compute_commitment(&srs, &vk, &relation.1);
 
-    let rows = cost_model(&EcdsaPoPP256::<B_FACTORS>, None).rows;
+    let rows = cost_model(&EcdsaPoPP256::<NB_BITS_C>, None).rows;
     println!("Number of rows: {}", rows);
     println!("Proof size: {}B", proof.len());
 
