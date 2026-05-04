@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "R1CS to IPA transformation with zero-knowledge and committed-input support"
 license = "MIT"
-# TODO: repository
+repository = "https://github.com/hpicrypto/ecdsa_pops"
 
 [lib]
 doctest = false

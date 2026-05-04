@@ -2,6 +2,7 @@
 name = "pop_circuit_ffa"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/hpicrypto/ecdsa_pops"
 
 [dependencies]
 midnight-proofs = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }

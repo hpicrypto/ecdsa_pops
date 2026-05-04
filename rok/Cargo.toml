@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "An implementation of Reductions of Knowledge"
 license = "MIT"
+repository = "https://github.com/hpicrypto/ecdsa_pops"
 
 [lib]
 doctest = false

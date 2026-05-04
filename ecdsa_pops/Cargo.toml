@@ -2,7 +2,8 @@
 name = "ecdsa_pops"
 version = "0.1.0"
 edition = "2021"
-description = "TODO"
+description = "Implementations of ECDSA-based PoPs"
+repository = "https://github.com/hpicrypto/ecdsa_pops"
 license = "MIT"
 
 [lib]
