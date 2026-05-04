@@ -1,6 +1,6 @@
 # Implementations of ECDSA Proofs-of-Possession 
 
-A Rust library implementing variants of ECDSA proofs-of-possesion in the framework of [\[1\]]. The constructions are presented in (TODO add paper link).
+A Rust library implementing variants of ECDSA proofs-of-possesion in the framework of [\[1\]](#ffa). The constructions are presented in (TODO add paper link).
 
 ## Disclaimer
 
