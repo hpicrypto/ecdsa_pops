@@ -1,11 +1,9 @@
 [package]
 name = "rok"
 version = "0.1.0"
-authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com"]
 edition = "2021"
 description = "An implementation of Reductions of Knowledge"
-# TODO: license = ""
-# TODO: repository = ""
+license = "MIT"
 
 [lib]
 doctest = false

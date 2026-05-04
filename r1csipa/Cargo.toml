@@ -2,7 +2,6 @@
 name = "r1csipa"
 version = "0.1.0"
 edition = "2021"
-authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com"]
 description = "R1CS to IPA transformation with zero-knowledge and committed-input support"
 license = "MIT"
 # TODO: repository

@@ -1,11 +1,9 @@
 [package]
 name = "ecdsa_pops"
 version = "0.1.0"
-authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com"]
 edition = "2021"
 description = "TODO"
-# TODO: license
-# TODO: repository
+license = "MIT"
 
 [lib]
 doctest = false

@@ -3,8 +3,6 @@ resolver = "2"
 members = ["r1csipa", "ecdsa_pops", "rok", "pop_circuit_ffa"]
 
 [workspace.package]
-authors = ["Alexandros Zacharakis <alexandroszacharakis8@gmail.com", "TODO"]
-
 edition = "2021"
 [workspace.dependencies]
 thiserror = "1"

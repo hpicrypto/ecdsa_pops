@@ -10,7 +10,8 @@ This project is provided "as is" and is intended for educational and experimenta
 The authors and contributors are not responsible for any damage, loss of data, or other issues that may arise from using this software.
 
 ## License
-TODO
+
+MIT
 
 ## References
 
