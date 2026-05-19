@@ -19,6 +19,7 @@ ark-std = { workspace = true }
 rayon = "1.8"
 subtle = "2.2.1"
 rand_core = { workspace = true }
+bellpepper-core = { workspace = true }
 
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
@@ -26,7 +27,6 @@ halo2curves = { git = "https://github.com/zaverucha/signature-proof", features =
   "asm",
 ] }
 
-bellpepper-core = { workspace = true }
 
 
 [dev-dependencies]
