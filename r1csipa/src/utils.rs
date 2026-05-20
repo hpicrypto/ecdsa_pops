@@ -1,6 +1,6 @@
 use halo2curves::{
     ff::{Field, PrimeField},
-    msm::MsmImplementation,
+    msm::msm_best,
     CurveAffine,
 };
 use subtle::ConstantTimeEq;
@@ -30,7 +30,7 @@ impl<F: PrimeField> Iterator for Powers<F> {
 
 /// Perform an msm of scalars with bases
 pub fn msm_function<C: CurveAffine>(scalars: &[C::Scalar], bases: &[C]) -> C::Curve {
-    C::specialized_msm(scalars, bases)
+    msm_best(scalars, bases)
 }
 
 /// Return an iterator of the powers of `x`.

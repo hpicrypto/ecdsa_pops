@@ -15,17 +15,15 @@ ff = { version = "0.13.0", features = ["derive"] }
 merlin = { version = "3.0.0", default-features = false }
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2.14"
-ark-std = "0.4.0"
+ark-std = { version = "0.4.0", features = ["getrandom"] }
 ark-ff = { version = "^0.4.1", default-features = false }
 ark-ec = { version = "^0.4.1", default-features = false }
-ark-serialize = { version = "^0.4.1", default-features = false, features = [ "derive" ] }
+ark-serialize = { version = "^0.4.1", default-features = false, features = [
+  "derive",
+] }
 rand_core = { version = "0.6", default-features = false }
 
-halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [
-  "derive_serde",
-  "bits",
-  "serde",
-] }
+halo2curves = { version = "0.10", features = ["derive_serde", "bits", "serde"] }
 
 # Redirect midnight-* from crates.io to the ecdsa_pop git branch.
 # The branch bumps midnight-proofs to 0.7.2 and midnight-circuits to 6.2.0

@@ -38,7 +38,7 @@ equality_across_groups = {git = "https://github.com/alexandroszacharakis8/dockne
 dock_crypto_utils = {git = "https://github.com/alexandroszacharakis8/docknetwork-crypto"}
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [
+halo2curves = { version="0.10", features = [
   "asm",
 ] }
 
