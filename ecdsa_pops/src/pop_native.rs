@@ -103,6 +103,25 @@ impl PoPNativeNizk {
         }
     }
 
+    /// Constructs [PoPNativeNizk] from its parameter parts.
+    pub fn from_parts(
+        ck_bls: G1Affine,
+        ck_bls_blinding: G1Affine,
+        ck_t256_Qx: T256Affine,
+        ck_t256_Rx: T256Affine,
+        ck_t256_blinding: T256Affine,
+        circuit_params: R1CSProofParams<T256Affine>,
+    ) -> Self {
+        Self {
+            ck_bls,
+            ck_bls_blinding,
+            ck_t256_Qx,
+            ck_t256_Rx,
+            ck_t256_blinding,
+            circuit_params,
+        }
+    }
+
     /// Given a statement, specializes parameters and creates the composed rok
     fn get_rok(&self) -> PoPNativeComposedRoK {
         // bls_to_tom_rok rok
