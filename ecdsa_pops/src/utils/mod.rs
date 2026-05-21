@@ -1,10 +1,11 @@
 //! Helper types and functions for implementing PoPs
-use ark_ec::short_weierstrass::Affine as SwAffine;
+use ark_ec::short_weierstrass::{Affine as SwAffine, SWCurveConfig};
 use ark_ff::{BigInteger, One, PrimeField as ArkPrimeField};
 use ark_secp256r1::{Affine as Secp256r1AffineArk, Fq as FpArk, Fr as FqArk};
 use ff::{Field, PrimeField};
 use halo2curves::{secp256r1::Secp256r1Affine, t256::T256Affine, CurveAffine};
 use num_bigint::BigUint;
+use num_traits::ToBytes;
 
 use ark_serialize::CanonicalSerialize;
 
@@ -28,54 +29,62 @@ pub type Fq = <Secp256r1Affine as CurveAffine>::ScalarExt;
 type Ft = <T256Affine as CurveAffine>::Base;
 
 /// Helper function to convert P256 base [Fp] to T256 Scalar [Fr]
-pub(crate) fn fp_to_fr(a: &Fp) -> Fr {
+pub fn fp_to_fr(a: &Fp) -> Fr {
     Fr::from_bytes(&a.to_bytes()).unwrap()
 }
 
 /// Helper function to convert P256 scalar [Fq] to T256 Scalar [Fr]
-pub(crate) fn fq_to_fr(a: &Fq) -> Fr {
+pub fn fq_to_fr(a: &Fq) -> Fr {
     Fr::from_bytes(&a.to_bytes()).unwrap()
 }
 
+/// Helper function to convert halo2 Fr elements to ark Fr elements
+pub fn fr_to_arkfr<F: ArkPrimeField>(a: &Fr) -> F {
+    let halo_repr = a.to_repr();
+    let halo_bytes = halo_repr.as_ref();
+    F::from_le_bytes_mod_order(halo_bytes.as_ref())
+}
+
 /// Helper function to convert halo2 Fq elements to ark Fq elements
-pub(crate) fn fq_to_arkfq(a: &Fq) -> FqArk {
+pub fn fq_to_arkfq(a: &Fq) -> FqArk {
     let halo_repr = a.to_repr();
     let halo_bytes = halo_repr.as_ref();
     <FqArk as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
 }
 
 /// Helper function to convert halo2 Fp elements to ark Fp elements
-pub(crate) fn fp_to_arkfp(a: &Fp) -> FpArk {
+pub fn fp_to_arkfp(a: &Fp) -> FpArk {
     let halo_repr = a.to_repr();
     let halo_bytes = halo_repr.as_ref();
     <FpArk as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
 }
 
+/// Helper function to convert halo2 Ft elements to ark Ft elements
+pub fn ft_to_arkft<F: ArkPrimeField>(a: &Ft) -> F {
+    let halo_repr = a.to_repr();
+    let halo_bytes = halo_repr.as_ref();
+    F::from_le_bytes_mod_order(halo_bytes.as_ref())
+}
+
 /// Helper function to convert halo2 [Secp256r1Affine] elements to
 /// [Secp256r1AffineArk] elements
-pub(crate) fn p256_to_arkp256(P: &Secp256r1Affine) -> Secp256r1AffineArk {
+pub fn p256_to_arkp256(P: &Secp256r1Affine) -> Secp256r1AffineArk {
     let (x, y) = (fp_to_arkfp(&P.x), fp_to_arkfp(&P.y));
     Secp256r1AffineArk::new(x, y)
 }
 
 /// Converts halo2 Ft elements to CDLS-side t256 Fq (the base field).
 pub(crate) fn ft_to_cdls_ft(a: &Ft) -> t256::Fq {
-    let halo_repr = a.to_repr();
-    let halo_bytes = halo_repr.as_ref();
-    <t256::Fq as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
+    ft_to_arkft(a)
 }
 
 /// Converts a halo2curves [T256Affine] to a CDLS-side [t256::Affine].
 pub(crate) fn t256_to_cdls_t256(p: &T256Affine) -> SwAffine<t256::Config> {
-    let x = ft_to_cdls_ft(&p.x);
-    let y = ft_to_cdls_ft(&p.y);
-    SwAffine::<t256::Config>::new(x, y)
+    t256_to_arkt256(p)
 }
 
 pub(crate) fn fr_to_cdls_fr(a: &Fr) -> t256::Fr {
-    let halo_repr = a.to_repr();
-    let halo_bytes = halo_repr.as_ref();
-    <t256::Fr as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
+    fr_to_arkfr(a)
 }
 
 /// Convert CDLS-side ark t256 Affine to halo2curves T256Affine.
@@ -105,13 +114,22 @@ pub(crate) fn ark_ft_to_halo_ft(a: &t256::Fq) -> Ft {
     <Ft as PrimeField>::from_repr(buf.into()).unwrap()
 }
 
+/// Helper function to convert halo2 [Secp256r1Affine] elements to
+/// [Secp256r1AffineArk] elements
+pub fn t256_to_arkt256<C>(P: &T256Affine) -> SwAffine<C>
+where
+    C: SWCurveConfig,
+    C::BaseField: ArkPrimeField,
+{
+    let (x, y) = (ft_to_arkft(&P.x), ft_to_arkft(&P.y));
+    SwAffine::<C>::new(x, y)
+}
+
 /// Converts a P256 base  element [Fp] to a representation in
 /// [CurveAffine::ScalarExt].
 ///
 /// The result is given in little endian limbs
-pub(crate) fn fp_to_scalars<C, const N_LIMBS: usize>(
-    x: &Fp,
-) -> Result<[C::ScalarExt; N_LIMBS], PopError>
+pub fn fp_to_scalars<C, const N_LIMBS: usize>(x: &Fp) -> Result<[C::ScalarExt; N_LIMBS], PopError>
 where
     C: CurveAffine,
     C::ScalarExt:
@@ -139,7 +157,7 @@ where
 
 /// Converts [CurveAffine::ScalarExt] limbs to a P256 Base element [Fp] fp
 /// element Fp is little endian
-pub(crate) fn scalars_to_fp<C, const N_LIMBS: usize>(limbs: &[C::ScalarExt; N_LIMBS]) -> Fp
+pub fn scalars_to_fp<C, const N_LIMBS: usize>(limbs: &[C::ScalarExt; N_LIMBS]) -> Fp
 where
     C: CurveAffine,
     C::ScalarExt:
@@ -151,15 +169,69 @@ where
     })
 }
 
+/// Helper function to convert ark Fq elements to halo2 Fq elements
+pub fn arkfq_to_fq(ark_fq: &FqArk) -> Option<Fq> {
+    // The conversion to BigUint is important!
+    // arkworks stores the field element internally as
+    // a signed BigInt!
+    let fq_bigint: BigUint = ark_fq.clone().into();
+
+    let fq_bytes = fq_bigint.to_le_bytes();
+    let mut a_bytes: [u8; 32] = [0; 32];
+    // we use a little endian, so fill bytes are to the right (trainling zeros)
+    // The bounds for rejecting P256 elements is just short of the 32 bytes
+    // so it can happen that we have 31 bytes (with a trailing zero).
+    a_bytes[..fq_bytes.len()].copy_from_slice(&fq_bytes);
+    Fq::from_repr(a_bytes.into()).into_option()
+}
+/// Helper function to convert ark Fp elements to halo2 Fp elements
+pub fn arkfp_to_fp(ark_fp: &FpArk) -> Option<Fp> {
+    // The conversion to BigUint is important!
+    // arkworks stores the field element internally as
+    // a signed BigInt!
+    let fp_bigint: BigUint = ark_fp.clone().into();
+    let fp_bigint_bytes = fp_bigint.to_le_bytes();
+    let mut fp_bytes: [u8; 32] = [0; 32];
+    // we use a little endian, so fill bytes are to the right (trainling zeros)
+    // The bounds for rejecting P256 elements is just short of the 32 bytes
+    // so it can happen that we have 31 bytes (with a trailing zero).
+    fp_bytes[..fp_bigint_bytes.len()].copy_from_slice(&fp_bigint_bytes);
+    Fp::from_repr(fp_bytes.into()).into_option()
+}
+/// Helper function to convert [Secp256r1AffineArk] elements to
+/// halo2 [Secp256r1Affine] elements
+pub fn arkp256_to_p256(P: &Secp256r1AffineArk) -> Option<Secp256r1Affine> {
+    let (x, y) = (arkfp_to_fp(&P.x)?, arkfp_to_fp(&P.y)?);
+    Some(Secp256r1Affine { x: x, y })
+}
+
 #[cfg(test)]
 mod tests {
     use ff::Field;
     use halo2curves::{secp256r1::Secp256r1Affine, t256::T256Affine};
     use rand_core::OsRng;
 
-    use crate::utils::{fr_to_cdls_fr, ft_to_cdls_ft, t256_to_cdls_t256};
+    use crate::utils::{
+        arkfq_to_fq, arkp256_to_p256, fr_to_cdls_fr, ft_to_cdls_ft, t256_to_cdls_t256,
+    };
 
     use super::{fp_to_arkfp, fq_to_arkfq, p256_to_arkp256, Fp, Fq, Fr, Ft};
+    #[test]
+    fn test_converting_back_and_forth() {
+        let P = Secp256r1Affine::random(OsRng);
+        let z = Fq::random(OsRng);
+        let Q: Secp256r1Affine = (P * z).into();
+
+        let Park = p256_to_arkp256(&P);
+        let zark = fq_to_arkfq(&z);
+        let Qark = p256_to_arkp256(&Q);
+        assert_eq!(Park * zark, Qark);
+        let p2 = arkp256_to_p256(&Park).unwrap();
+        let z2 = arkfq_to_fq(&zark).unwrap();
+        let q2 = arkp256_to_p256(&Qark).unwrap();
+        let d: Secp256r1Affine = (p2 * z2).into();
+        assert_eq!(d, q2);
+    }
 
     #[test]
     fn test_field_conversions() {
