@@ -24,7 +24,7 @@ use crate::{
     utils::{ecdsa::ECDSA, fp_to_scalars, Fq},
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// CSchnorr RoK for reducing [RelECDSA] -> [RelCSchnorr]
 pub struct CSchnorrRoKProof<C, const SEC_PARAM_BYTES: usize, const L: usize>
 where

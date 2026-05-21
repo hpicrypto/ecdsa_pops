@@ -19,7 +19,7 @@ use crate::{
     transcript::ECScalarMulTranscript,
 };
 
-#[derive(CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct ECScalarMulWCProof<P: PedersenConfig> {
     /// c1_x, c1_y: commitments to Z' = αK.
     pub c1_x: sw::Affine<P>,

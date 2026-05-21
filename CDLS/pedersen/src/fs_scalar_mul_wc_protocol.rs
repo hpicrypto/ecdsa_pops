@@ -15,7 +15,7 @@ use crate::{
     transcript::ECScalarMulTranscript,
 };
 
-#[derive(CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct FSECScalarMulWCProof<P: PedersenConfig> {
     proofs: Vec<ECScalarMulWCProof<P>>,
 }

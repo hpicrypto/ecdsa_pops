@@ -23,7 +23,7 @@ use crate::{
     },
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PedersenEqRoKProof<C>
 where
     C: CurveAffine,

@@ -25,6 +25,7 @@ use crate::{
 /// PA RoK proof, with the CDLS library. Uses the optimised standalone
 /// point-addition proof (Opt 1 and 2, retains the C_2
 /// opening proof, so safe to use standalone, not just inside SM).
+#[derive(Clone)]
 pub struct PAProof {
     proof: SqECPointAddProof<TomConfig>,
 }

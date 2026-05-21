@@ -19,7 +19,7 @@ use crate::{
     utils::{ecdsa::ECDSA, fp_to_fr, Fr},
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// Group RoK for reducing [RelECDSA] (over T256) -> ([RelSM] x [RelPA]) in T256
 /// curve
 pub struct GroupRoKProof {
