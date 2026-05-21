@@ -1,4 +1,4 @@
-use halo2curves::{
+pub use halo2curves::{
     bls12381::{G1Affine, G1},
     t256::{T256Affine, T256},
     CurveExt,
@@ -71,7 +71,7 @@ type NativeCircuitRoK128 = NativeCircuitRoK<T256Affine, 16>;
 ///
 /// We don't open the commitment used in the circuit since we can extract the
 /// opening from the previous proofs
-type PoPNativeComposedRoK = rok_compose_type!(
+pub type PoPNativeComposedRoK = rok_compose_type!(
     PopError;
     // RelECDSA<BLS> ---> RelECDSA<T256>
     //               ---> RelCSchnorr<T256,128>
