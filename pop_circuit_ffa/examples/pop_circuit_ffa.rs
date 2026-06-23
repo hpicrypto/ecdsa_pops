@@ -11,7 +11,7 @@ use rand::{rngs::OsRng, Rng};
 
 type F = midnight_curves::Fq;
 
-pub const NB_BITS_C: usize = 96;
+pub const NB_BITS_C: usize = 128;
 
 fn main() {
     let mut rng = OsRng;
@@ -21,14 +21,19 @@ fn main() {
     let r = P256::random(&mut rng);
     let blinders = [0; B_FACTORS].map(|_| F::random(&mut rng));
 
-    let c_u128: u128 = rng.gen::<u128>() & ((1u128 << NB_BITS_C) - 1);
+    assert!(NB_BITS_C <= u128::BITS as usize);
+    let c_u128: u128 = if NB_BITS_C == u128::BITS as usize {
+        rng.gen()
+    } else {
+        rng.gen::<u128>() & ((1u128 << NB_BITS_C) - 1)
+    };
     let c_bits: Vec<bool> = (0..NB_BITS_C).map(|i| (c_u128 >> i) & 1 == 1).collect();
     let popcount = c_bits.iter().filter(|&&b| b).count();
 
     let mut c_be = [0u8; 32];
     c_be[16..].copy_from_slice(&c_u128.to_be_bytes());
     let c_scalar = P256Scalar::from_bytes_be(&c_be).expect("valid bounded scalar");
-    let t = r + q * c_scalar;
+    let t = r * c_scalar + q;
 
     println!("c: {NB_BITS_C}-bit scalar, popcount = {popcount}");
 
@@ -114,7 +119,8 @@ fn run_proof<Rel>(
 
     let c_instance = Rel::format_committed_instances(&witness);
     let commitment =
-        commit_to_instances::<F, KZGCommitmentScheme<_>>(&srs, vk.vk().get_domain(), &c_instance);
+        commit_to_instances::<F, KZGCommitmentScheme<_>>(&srs, vk.vk().get_domain(), &c_instance)
+            .into_point();
 
     let t_verify = Instant::now();
     assert!(

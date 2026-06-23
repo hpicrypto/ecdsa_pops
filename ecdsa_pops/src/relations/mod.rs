@@ -12,8 +12,11 @@ pub(crate) mod rdleq;
 /// knowledge of valid signature of m under committed public key
 pub mod recdsa;
 
-/// the knowledge of pedersen commitment opening
+/// knowledge of pedersen commitment opening
 pub(crate) mod rpedersen;
+
+/// knowledge of equal plain and compact pedersen opening
+pub(crate) mod rpederseneq;
 
 /// point addition over p256 committed points
 pub(crate) mod rpa;

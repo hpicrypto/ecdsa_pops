@@ -10,12 +10,14 @@
 
 pub(crate) mod circuit_native;
 pub mod errors;
+mod pop_ffa;
 mod pop_native;
 mod pop_sigma;
 mod relations;
 pub(crate) mod roks;
 pub mod utils;
 
+pub use pop_ffa::*;
 pub use pop_native::*;
 pub use pop_sigma::*;
 pub use relations::recdsa::*;
