@@ -73,7 +73,7 @@ impl TranscriptProtocol for Transcript {
     }
 
     fn append_point<C: CurveAffine + SerdeObject>(&mut self, label: &'static [u8], point: &C) {
-        self.append_message(label, &point.to_raw_bytes());
+        self.append_message(label, &point.to_bytes().as_ref());
     }
 
     fn validate_and_append_point<C: CurveAffine + SerdeObject>(
@@ -84,7 +84,7 @@ impl TranscriptProtocol for Transcript {
         if bool::from(point.is_identity()) {
             Err(ProofError::VerificationError)
         } else {
-            self.append_message(label, &point.to_raw_bytes());
+            self.append_message(label, &point.to_bytes().as_ref());
             Ok(())
         }
     }

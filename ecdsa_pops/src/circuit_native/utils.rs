@@ -464,6 +464,6 @@ mod tests {
         let x_scalar = Scalar::random(rng);
         let x_bigint = scalar_to_biguint::<Scalar>(&x_scalar);
         let x_scalar2 = biguint_to_scalar::<Scalar>(&x_bigint);
-        assert!(x_scalar2 == x_scalar2);
+        assert!(x_scalar2 == x_scalar);
     }
 }

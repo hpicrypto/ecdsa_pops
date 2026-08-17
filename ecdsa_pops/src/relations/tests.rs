@@ -27,6 +27,9 @@ use crate::{
         rdleq::{RelDLEQ, RelDLEQParams, RelDLEQStatement, RelDLEQWitness},
         recdsa::{RelECDSA, RelECDSAParams, RelECDSAStatement, RelECDSAWitness},
         rpedersen::{RelPedersen, RelPedersenParams, RelPedersenStatement, RelPedersenWitness},
+        rpederseneq::{
+            RelPedersenEq, RelPedersenEqParams, RelPedersenEqStatement, RelPedersenEqWitness,
+        },
     },
     utils::{ecdsa::ECDSA, fp_to_fr, fp_to_scalars, Fq, Fr},
 };
@@ -157,7 +160,7 @@ where
 
     // compute commitment
     let C = RelCSchnorrCompact::<CCom, L, B>::create_commitment(
-        &R, &Q, &rho, &pp.ck_Q, &pp.ck_R, &pp.h,
+        &R, &Q, &rho, &pp.ck_R, &pp.ck_Q, &pp.h,
     );
 
     let x = RelCSchnorrCompactStatement::<CCom, L> { C, T, c };
@@ -313,6 +316,68 @@ pub(crate) fn sample_random_dleq_instance() -> RelDLEQ<G1Affine, T256Affine> {
     RelDLEQ::new(pp, x, Some(w))
 }
 
+/// sample a random instance of [RelPedersenEq]
+pub(crate) fn sample_random_pederseneq_instance<CCom, const L: usize, const B: usize>(
+) -> RelPedersenEq<CCom, L, B>
+where
+    CCom: CurveAffine,
+    CCom::ScalarExt:
+        PrimeField<Repr = <<Secp256r1Affine as CurveAffine>::ScalarExt as PrimeField>::Repr>,
+{
+    let plain_ck = pedersen_key::<CCom>(2, "sample_random_pederseneq_instance plain");
+    let compact_gs = pedersen_key::<CCom>(L, "sample_random_pederseneq_instance compact gs")
+        .try_into()
+        .unwrap();
+    let compact_hs = pedersen_key::<CCom>(B, "sample_random_pederseneq_instance compact hs")
+        .try_into()
+        .unwrap();
+
+    let pp = RelPedersenEqParams {
+        G_plain: plain_ck[0],
+        H_plain: plain_ck[1],
+        Gs_compact: compact_gs,
+        Hs_compact: compact_hs,
+    };
+
+    let m = (0..L)
+        .map(|_| <CCom::ScalarExt as Field>::random(OsRng))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    let r_plain = (0..L)
+        .map(|_| <CCom::ScalarExt as Field>::random(OsRng))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    let r_compact = (0..B)
+        .map(|_| <CCom::ScalarExt as Field>::random(OsRng))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+    let w = RelPedersenEqWitness {
+        m,
+        r_plain,
+        r_compact,
+    };
+
+    let rs = RelPedersenEq::new(
+        pp,
+        RelPedersenEqStatement {
+            C_plain: [CCom::identity(); L],
+            C_compact: CCom::identity(),
+        },
+        Some(w),
+    );
+
+    let x = RelPedersenEqStatement {
+        C_plain: rs.create_plain_commitments().unwrap(),
+        C_compact: rs.create_compact_commitment().unwrap(),
+    };
+
+    RelPedersenEq::new(rs.params().clone(), x, rs.witness().clone())
+}
+
 fn test_relations_helper<CCom, const L: usize>()
 where
     CCom: CurveAffine,
@@ -325,7 +390,7 @@ where
     assert!(result.is_ok(), "not in relation: {:?}", result);
 
     let rcschnor_compact = sample_random_cschnorr_compact_instance::<CCom, 16, L, 10>();
-    let result = rcschnor.in_relation();
+    let result = rcschnor_compact.in_relation();
     assert!(result.is_ok(), "not in relation: {:?}", result);
 
     // RelECDSA
@@ -357,6 +422,10 @@ where
     );
     let rpedersen = RelPedersen::<CCom>::new(pp, x, Some(w));
     let result = rpedersen.in_relation();
+    assert!(result.is_ok(), "not in relation: {:?}", result);
+
+    let rpederseneq = sample_random_pederseneq_instance::<CCom, L, 8>();
+    let result = rpederseneq.in_relation();
     assert!(result.is_ok(), "not in relation: {:?}", result);
 }
 

@@ -13,40 +13,37 @@ doctest = false
 bellpepper-core = { workspace = true }
 bellpepper = { workspace = true }
 ff = { workspace = true }
-
 merlin = { workspace = true }
 num-bigint = { workspace = true }
 num-traits = { workspace = true }
 ark-std = { workspace = true }
 ark-ff = { workspace = true }
 ark-ec = { workspace = true }
-ark-serialize = { workspace = true}
+ark-serialize = { workspace = true }
 serde = { workspace = true }
 bincode = { workspace = true }
 rand_core = { workspace = true }
 thiserror = { workspace = true }
 r1csipa = { path = "../r1csipa/" }
 rok = { path = "../rok/" }
-
+pop_circuit_ffa = { path = "../pop_circuit_ffa/" }
 halo2curves = { workspace = true }
-
+midnight-proofs = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "main" }
+midnight-curves = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "main" }
+midnight-zk-stdlib = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "main" }
+blake2b_simd = "1"
+pedersen = { path = "../CDLS/pedersen" }
+t256     = { path = "../CDLS/t256" }
 # Need for equality across groups
 ark-secp256r1 = { version = "^0.4.0", default-features = false }
 
-
-equality_across_groups = {git = "https://github.com/alexandroszacharakis8/docknetwork-crypto"}
-dock_crypto_utils = {git = "https://github.com/alexandroszacharakis8/docknetwork-crypto"}
-
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [
-  "asm",
-] }
+halo2curves = { version = "0.10", features = ["asm"] }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 
 [features]
-# default = ["print-trace"]
 print-trace = ["ark-std/print-trace", "r1csipa/print-trace"]
 
 [[bench]]
@@ -55,4 +52,8 @@ harness = false
 
 [[bench]]
 name = "pop_sigma"
+harness = false
+
+[[bench]]
+name = "pop_ffa"
 harness = false

@@ -1,10 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["r1csipa", "ecdsa_pops", "rok", "pop_circuit_ffa"]
+members = ["r1csipa", "ecdsa_pops", "rok", "pop_circuit_ffa", "CDLS/pedersen", "CDLS/t256", "CDLS/macros"]
 
 [workspace.package]
 edition = "2021"
 repository = "https://github.com/hpicrypto/ecdsa_pops"
+
 [workspace.dependencies]
 thiserror = "1"
 serde = { version = "1.0", features = ["derive"] }
@@ -15,24 +16,21 @@ ff = { version = "0.13.0", features = ["derive"] }
 merlin = { version = "3.0.0", default-features = false }
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2.14"
-ark-std = "0.4.0"
+ark-std = { version = "0.4.0", features = ["getrandom"] }
 ark-ff = { version = "^0.4.1", default-features = false }
 ark-ec = { version = "^0.4.1", default-features = false }
-ark-serialize = { version = "^0.4.1", default-features = false, features = [ "derive" ] }
+ark-serialize = { version = "^0.4.1", default-features = false, features = [
+  "derive",
+] }
 rand_core = { version = "0.6", default-features = false }
 
-halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [
-  "derive_serde",
-  "bits",
-  "serde",
-] }
+halo2curves = { version = "0.10", features = ["derive_serde", "bits", "serde", "std"] }
 
-# Redirect midnight-* from crates.io to the ecdsa_pop git branch.
-# The branch bumps midnight-proofs to 0.7.2 and midnight-circuits to 6.2.0
-# (above crates.io), so Cargo's resolver picks the patched git versions.
+# Redirect midnight-* from crates.io to midnight-zk main.
+# rev should be af4bd615036dbab66fece84fd354c6d4cf7d4638 but cannot directly put here due to deps
 [patch.crates-io]
-midnight-curves = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
-midnight-proofs = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
-midnight-circuits = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
-midnight-zk-stdlib = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "iquerejeta/ecdsa_pop" }
-sha3-circuit = { git = "https://github.com/alexandroszacharakis8/sha3-circuit", branch = "midnight0.7.2" }
+midnight-curves = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "main" }
+midnight-proofs = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "main" }
+midnight-circuits = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "main" }
+midnight-zk-stdlib = { git = "https://github.com/midnightntwrk/midnight-zk", branch = "main" }
+ark-secp256r1 = { git = "https://github.com/arkworks-rs/curves", rev = "e2d16a27" }

@@ -23,7 +23,7 @@ bellpepper-core = { workspace = true }
 
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-halo2curves = { git = "https://github.com/zaverucha/signature-proof", features = [
+halo2curves = { version="0.10", features = [
   "asm",
 ] }
 

@@ -70,6 +70,27 @@ impl PoPSigmaNizk {
         }
     }
 
+    /// Construct a [PoPSigmaNizk] with a caller-supplied T256 commitment key.
+    ///
+    /// Use this when the T256 generators must match a specific pair, e.g. the
+    /// CDLS-side compile-time generators required by [SMRoK]'s WC scalar-mul proof.
+    /// The BLS generators are still derived from `label` via hash-to-curve.
+    pub fn new_with_t256_key(
+        label: &str,
+        ck_t256: T256Affine,
+        ck_t256_blinding: T256Affine,
+    ) -> Self {
+        let hasher_bls = G1::hash_to_curve(&label);
+        let ck_bls = hasher_bls(b"ck_bls").into();
+        let ck_bls_blinding = hasher_bls(b"ck_bls_blinding").into();
+        Self {
+            ck_bls,
+            ck_bls_blinding,
+            ck_t256,
+            ck_t256_blinding,
+        }
+    }
+
     /// Given a statement, specializes parameters and creates the composed rok
     fn get_rok(&self) -> PoPSigmaComposedRoK {
         // bls_to_tom_rok rok
@@ -128,11 +149,13 @@ impl Nizk for PoPSigmaNizk {
 #[cfg(test)]
 mod tests {
 
+    use ark_ec::short_weierstrass::SWCurveConfig;
     use halo2curves::bls12381::G1Affine;
     use merlin::Transcript;
     use rand_core::OsRng;
     use rok::{Nizk, Relation};
 
+    use crate::utils::cdls_t256_to_t256;
     use crate::{
         relations::{recdsa::RelECDSA, tests::sample_random_ecdsa_instance_with_key},
         PoPSigmaNizk,
@@ -140,9 +163,16 @@ mod tests {
 
     #[test]
     fn test_popsigma_nizk() {
-        let nizk = PoPSigmaNizk::new("test popsigma");
+        // CDLS fixes the generators
+        let cdls_g = <t256::Config as SWCurveConfig>::GENERATOR;
+        let cdls_h = <t256::Config as pedersen::pedersen_config::PedersenConfig>::GENERATOR2;
+        let halo_g = cdls_t256_to_t256(&cdls_g);
+        let halo_h = cdls_t256_to_t256(&cdls_h);
 
-        // sample a random statement
+        let mut nizk = PoPSigmaNizk::new("test popsigma");
+        nizk.ck_t256 = halo_g;
+        nizk.ck_t256_blinding = halo_h;
+
         let mut r = sample_random_ecdsa_instance_with_key::<G1Affine, 2>(
             [nizk.ck_bls, nizk.ck_bls],
             nizk.ck_bls_blinding,
@@ -151,15 +181,12 @@ mod tests {
 
         let mut transcript_prover = Transcript::new(b"pop sigma proof");
         let proof = nizk.prove(&mut transcript_prover, &r, &mut OsRng).unwrap();
-
         let bytes = bincode::serialize(&proof).unwrap();
         println!("proof size: {} bytes", bytes.len());
 
         let r_verifier = RelECDSA::new(r.params().clone(), r.statement().clone(), None);
-
         let mut transcript_verifier = Transcript::new(b"pop sigma proof");
         let result = nizk.verify(&mut transcript_verifier, &r_verifier, &proof);
-
         assert!(result.is_ok(), "nizk failed: {:?}", result);
     }
 }

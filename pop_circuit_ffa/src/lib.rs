@@ -1,6 +1,6 @@
 //! Proves knowledge of points Q, R on P-256 such that
 //!
-//!   T = R + c·Q
+//!   T = c·R + Q
 //!
 //! where T and c are the only public input.
 //!
@@ -27,7 +27,7 @@ use midnight_circuits::{
     types::{AssignedForeignPoint, AssignedNative, Instantiable},
     CircuitField,
 };
-use midnight_curves::p256::{affine_x, P256Affine, P256};
+use midnight_curves::p256::{affine_x, Fq as P256Scalar, P256Affine, P256};
 use midnight_proofs::{
     circuit::{Layouter, Value},
     plonk::Error,
@@ -128,13 +128,13 @@ impl<const NB_BITS_C: usize> Relation for EcdsaPoPP256<NB_BITS_C> {
         // ── Witnesses ─────────────────────────────────────────────────────────
         let (q_val, r_val) = witness.map(|(q, r, _)| (q, r)).unzip();
         let q: AssignedForeignPoint<_, _, _> = curve.assign(layouter, q_val)?;
-        let r = curve.assign(layouter, r_val)?;
+        let r: AssignedForeignPoint<_, _, _> = curve.assign(layouter, r_val)?;
 
-        // ── Relation: T = R + c·Q ─────────────────────────────────────────────
+        // ── Relation: T = c·R + Q ─────────────────────────────────────────────
         // Decompose c into NB_BITS_C little-endian bits (range-checked).
         let c_bits = std_lib.assigned_to_le_bits(layouter, &c_native, Some(NB_BITS_C), false)?;
-        let cq = curve.msm_by_le_bits(layouter, &[c_bits], &[q.clone()])?;
-        let result = curve.add(layouter, &cq, &r)?;
+        let cr = curve.msm_by_le_bits(layouter, &[c_bits], &[r.clone()])?;
+        let result = curve.add(layouter, &cr, &q)?;
         curve.assert_equal(layouter, &result, &t)?;
 
         // Compute the values q.x, q.r by the committed inputs
@@ -235,10 +235,10 @@ impl Relation for EcdsaPoPP256Daa {
         let q = curve.assign(layouter, q_val)?;
         let r = curve.assign(layouter, r_val)?;
 
-        // compute c*q + r in circuit
-        let cq = curve.mul_by_u128(layouter, self.c_bits, &q)?;
-        let result = curve.add(layouter, &cq, &r)?;
-        // assert c*q + r = t where t is a public point
+        // compute c*r + q in circuit
+        let cr = curve.mul_by_constant(layouter, P256Scalar::from_u128(self.c_bits), &r)?;
+        let result = curve.add(layouter, &cr, &q)?;
+        // assert c*r + q = t where t is a public point
         curve.assert_equal(layouter, &result, &t)?;
 
         // Compute the values q.x, q.r by the committed inputs

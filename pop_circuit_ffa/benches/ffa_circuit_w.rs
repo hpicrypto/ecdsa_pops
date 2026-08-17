@@ -33,7 +33,7 @@ fn get_relation() -> ((P256, u128), (P256, P256, [F; 8])) {
     let mut c_be = [0u8; 32];
     c_be[16..].copy_from_slice(&c_u128.to_be_bytes());
     let c_scalar = P256Scalar::from_bytes_be(&c_be).expect("valid bounded scalar");
-    let t = r + q * c_scalar;
+    let t = r * c_scalar + q;
 
     ((t, c_u128), (q, r, blinders))
 }
@@ -91,6 +91,7 @@ fn compute_commitment(
 ) -> G1Projective {
     let c_instance = EcdsaPoPP256::<NB_BITS_C>::format_committed_instances(witness);
     commit_to_instances::<F, KZGCommitmentScheme<_>>(srs, vk.vk().get_domain(), &c_instance)
+        .into_point()
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

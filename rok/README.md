@@ -16,4 +16,3 @@ MIT
 ## References
 
 \[1\]. <a id="rok"></a>A. Kothapalli, B. Parno, *Algebraic Reductions of Knowledge*, Crypto 2023.  [Eprint](https://eprint.iacr.org/2022/009)
-

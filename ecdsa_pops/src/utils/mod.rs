@@ -1,10 +1,12 @@
 //! Helper types and functions for implementing PoPs
-use ark_ff::{One, PrimeField as ArkPrimeField};
+use ark_ec::short_weierstrass::Affine as SwAffine;
+use ark_ff::{BigInteger, One, PrimeField as ArkPrimeField};
 use ark_secp256r1::{Affine as Secp256r1AffineArk, Fq as FpArk, Fr as FqArk};
-use equality_across_groups::tom256::{Affine as T256AffineArk, Fq as FtArk, Fr as FrArk};
 use ff::{Field, PrimeField};
 use halo2curves::{secp256r1::Secp256r1Affine, t256::T256Affine, CurveAffine};
 use num_bigint::BigUint;
+
+use ark_serialize::CanonicalSerialize;
 
 use crate::{
     circuit_native::utils::{big_to_ff, ff_to_big},
@@ -35,13 +37,6 @@ pub(crate) fn fq_to_fr(a: &Fq) -> Fr {
     Fr::from_bytes(&a.to_bytes()).unwrap()
 }
 
-/// Helper function to convert halo2 Fr elements to ark Fr elements
-pub(crate) fn fr_to_arkfr(a: &Fr) -> FrArk {
-    let halo_repr = a.to_repr();
-    let halo_bytes = halo_repr.as_ref();
-    <FrArk as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
-}
-
 /// Helper function to convert halo2 Fq elements to ark Fq elements
 pub(crate) fn fq_to_arkfq(a: &Fq) -> FqArk {
     let halo_repr = a.to_repr();
@@ -56,13 +51,6 @@ pub(crate) fn fp_to_arkfp(a: &Fp) -> FpArk {
     <FpArk as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
 }
 
-/// Helper function to convert halo2 Ft elements to ark Ft elements
-pub(crate) fn ft_to_arkft(a: &Ft) -> FtArk {
-    let halo_repr = a.to_repr();
-    let halo_bytes = halo_repr.as_ref();
-    <FtArk as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
-}
-
 /// Helper function to convert halo2 [Secp256r1Affine] elements to
 /// [Secp256r1AffineArk] elements
 pub(crate) fn p256_to_arkp256(P: &Secp256r1Affine) -> Secp256r1AffineArk {
@@ -70,11 +58,51 @@ pub(crate) fn p256_to_arkp256(P: &Secp256r1Affine) -> Secp256r1AffineArk {
     Secp256r1AffineArk::new(x, y)
 }
 
-/// Helper function to convert halo2 [Secp256r1Affine] elements to
-/// [Secp256r1AffineArk] elements
-pub(crate) fn t256_to_arkt256(P: &T256Affine) -> T256AffineArk {
-    let (x, y) = (ft_to_arkft(&P.x), ft_to_arkft(&P.y));
-    T256AffineArk::new(x, y)
+/// Converts halo2 Ft elements to CDLS-side t256 Fq (the base field).
+pub(crate) fn ft_to_cdls_ft(a: &Ft) -> t256::Fq {
+    let halo_repr = a.to_repr();
+    let halo_bytes = halo_repr.as_ref();
+    <t256::Fq as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
+}
+
+/// Converts a halo2curves [T256Affine] to a CDLS-side [t256::Affine].
+pub(crate) fn t256_to_cdls_t256(p: &T256Affine) -> SwAffine<t256::Config> {
+    let x = ft_to_cdls_ft(&p.x);
+    let y = ft_to_cdls_ft(&p.y);
+    SwAffine::<t256::Config>::new(x, y)
+}
+
+pub(crate) fn fr_to_cdls_fr(a: &Fr) -> t256::Fr {
+    let halo_repr = a.to_repr();
+    let halo_bytes = halo_repr.as_ref();
+    <t256::Fr as ArkPrimeField>::from_le_bytes_mod_order(halo_bytes.as_ref())
+}
+
+/// Convert CDLS-side ark t256 Affine to halo2curves T256Affine.
+/// Reverse of t256_to_cdls_t256.
+pub fn cdls_t256_to_t256(p: &SwAffine<t256::Config>) -> T256Affine {
+    let x = ark_ft_to_halo_ft(&p.x);
+    let y = ark_ft_to_halo_ft(&p.y);
+    T256Affine::from_xy(x, y).unwrap()
+}
+
+/// Convert CDLS-side ark t256 base-field element to halo2 Ft.
+pub(crate) fn cdls_ft_to_halo_ft(a: &t256::Fq) -> Ft {
+    let mut bytes = Vec::new();
+    a.serialize_compressed(&mut bytes).unwrap();
+    // ark serializes 32-byte LE, halo2 from_repr expects LE bytes.
+    let mut buf = [0u8; 32];
+    buf.copy_from_slice(&bytes[..32]);
+    <Ft as PrimeField>::from_repr(buf.into()).unwrap()
+}
+
+/// Reverse of ft_to_cdls_ft.
+pub(crate) fn ark_ft_to_halo_ft(a: &t256::Fq) -> Ft {
+    // ark field -> bytes -> halo2 field
+    let ark_repr = a.into_bigint().to_bytes_le(); // returns Vec<u8>
+    let mut buf = [0u8; 32];
+    buf.copy_from_slice(&ark_repr);
+    <Ft as PrimeField>::from_repr(buf.into()).unwrap()
 }
 
 /// Converts a P256 base  element [Fp] to a representation in
@@ -129,16 +157,15 @@ mod tests {
     use halo2curves::{secp256r1::Secp256r1Affine, t256::T256Affine};
     use rand_core::OsRng;
 
-    use super::{
-        fp_to_arkfp, fq_to_arkfq, fr_to_arkfr, ft_to_arkft, p256_to_arkp256, t256_to_arkt256, Fp,
-        Fq, Fr, Ft,
-    };
+    use crate::utils::{fr_to_cdls_fr, ft_to_cdls_ft, t256_to_cdls_t256};
+
+    use super::{fp_to_arkfp, fq_to_arkfq, p256_to_arkp256, Fp, Fq, Fr, Ft};
 
     #[test]
     fn test_field_conversions() {
         let (a, b) = (<Fr as Field>::random(OsRng), <Fr as Field>::random(OsRng));
         let c = a + b;
-        let (a_ark, b_ark, c_ark) = (fr_to_arkfr(&a), fr_to_arkfr(&b), fr_to_arkfr(&c));
+        let (a_ark, b_ark, c_ark) = (fr_to_cdls_fr(&a), fr_to_cdls_fr(&b), fr_to_cdls_fr(&c));
         assert_eq!(c_ark, a_ark + b_ark);
         let (a, b) = (<Fp as Field>::random(OsRng), <Fp as Field>::random(OsRng));
         let c = a + b;
@@ -150,7 +177,7 @@ mod tests {
         assert_eq!(c_ark, a_ark + b_ark);
         let (a, b) = (<Ft as Field>::random(OsRng), <Ft as Field>::random(OsRng));
         let c = a + b;
-        let (a_ark, b_ark, c_ark) = (ft_to_arkft(&a), ft_to_arkft(&b), ft_to_arkft(&c));
+        let (a_ark, b_ark, c_ark) = (ft_to_cdls_ft(&a), ft_to_cdls_ft(&b), ft_to_cdls_ft(&c));
         assert_eq!(c_ark, a_ark + b_ark);
     }
 
@@ -169,9 +196,9 @@ mod tests {
         let z = Fr::random(OsRng);
         let Q: T256Affine = (P * z).into();
 
-        let Park = t256_to_arkt256(&P);
-        let zark = fr_to_arkfr(&z);
-        let Qark = t256_to_arkt256(&Q);
+        let Park = t256_to_cdls_t256(&P);
+        let zark = fr_to_cdls_fr(&z);
+        let Qark = t256_to_cdls_t256(&Q);
         assert_eq!(Park * zark, Qark);
     }
 }
