@@ -18,7 +18,7 @@ pub trait RoK {
     /// The reduced relation
     type RelationTarget: Relation + Clone;
     /// reduction proof
-    type Proof;
+    type Proof: Clone;
     /// the [Error] type of the RoK
     type Error: Error
         + From<<Self::RelationSource as Relation>::Error>

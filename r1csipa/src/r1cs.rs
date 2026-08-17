@@ -184,7 +184,7 @@ struct ProverState<'a, C: CurveAffine> {
     eta: &'a C::Scalar,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct R1CSProof<C: CurveAffine + SerdeObject>
 where
     <C as CurveAffine>::ScalarExt: Serialize + for<'a> Deserialize<'a> + EndianRepr,

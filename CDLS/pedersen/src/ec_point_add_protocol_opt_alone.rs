@@ -32,7 +32,7 @@ use crate::{
 ///
 /// Statement: commitments (C_1, ..., C_6) to (a_x, a_y, b_x, b_y, t_x, t_y).
 /// Witness: the six coordinate scalars and their commitment blindings.
-#[derive(CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct SqECPointAddProof<P: PedersenConfig> {
     /// C_τ = τ·G + r_τ·H, commitment to the slope τ.
     pub c_tau: sw::Affine<P>,

@@ -30,7 +30,7 @@ use crate::{
     utils::fp_to_scalars,
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// CSchnorr RoK for reducing [RelCschnorr] -> [RelCSchnorrCompact] in bls curve
 /// This simply uses the [PedersenEqRok] to transfer the commitments to compact
 pub struct CSchnorrFFARoKProof {

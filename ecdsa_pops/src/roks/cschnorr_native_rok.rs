@@ -23,7 +23,7 @@ use crate::{
     utils::fp_to_fr,
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 /// CSchnorr RoK for reducing [RelCschnorr] -> [RelCSchnorrCompact] in T256
 /// curve
 pub struct CSchnorrNativeRoKProof {

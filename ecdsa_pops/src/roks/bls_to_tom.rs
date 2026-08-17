@@ -216,7 +216,7 @@ impl BlsToTomRoK {
 }
 
 /// the proof consists of two t256 commitments and the two [DLEQRoKProof]s
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlsToTomRoKProof {
     Cx_t256_low: T256Affine,
     dleq_proof_xlow: DLEQRoKProof<G1Affine, T256Affine>,

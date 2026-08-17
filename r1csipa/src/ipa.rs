@@ -31,7 +31,7 @@ use alloc::{borrow::Borrow, vec::Vec};
 // of Henry de Valence, Cathie Yun, and Oleg Andreev.
 // See inner_product_proof.rs
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct IPAParams<C: CurveAffine> {
     pub basesG: Vec<C>, // bases G, H have an equal number of bases
     pub basesH: Vec<C>,

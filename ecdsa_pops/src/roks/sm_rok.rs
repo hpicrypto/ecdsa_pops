@@ -24,6 +24,7 @@ use crate::{
 };
 
 /// SM RoK proof with CDLS.
+#[derive(Clone)]
 pub struct SMProof {
     proof: FSECScalarMulWCProof<TomConfig>,
 }
