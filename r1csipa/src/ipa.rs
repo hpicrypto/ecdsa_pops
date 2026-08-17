@@ -10,6 +10,7 @@ use halo2curves::{
 };
 use merlin::Transcript;
 use rand_core::OsRng;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -40,22 +41,33 @@ pub struct IPAParams<C: CurveAffine> {
 }
 impl<C: CurveAffine> IPAParams<C> {
     pub fn generate(domain_prefix: &str, n: usize) -> Self {
-        // TODO: Parallelize these loops
-        let hasher = C::CurveExt::hash_to_curve(domain_prefix);
         // Generate bases by hashing different domain-separated inputs
         let mut basesG = Vec::with_capacity(n);
-        for i in 0..n {
-            let input = format!("G_{}", i).into_bytes();
-            let point = hasher(&input);
-            basesG.push(C::from(point));
-        }
-
         let mut basesH = Vec::with_capacity(n);
-        for i in 0..n {
-            let input = format!("H_{}", i).into_bytes();
-            let point = hasher(&input);
-            basesH.push(C::from(point));
-        }
+        (0..n)
+            .into_par_iter()
+            .fold(
+                || Vec::with_capacity(n),
+                |mut acc, i| {
+                    let hasher = C::CurveExt::hash_to_curve(domain_prefix);
+                    let input = format!("G_{}", i).into_bytes();
+                    let input_h = format!("H_{}", i).into_bytes();
+                    let point = hasher(&input);
+                    let point_h = hasher(&input_h);
+
+                    acc.push((C::from(point), C::from(point_h)));
+                    acc
+                },
+            )
+            .flatten()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|a| {
+                basesG.push(a.0);
+                basesH.push(a.1);
+            });
+
+        let hasher = C::CurveExt::hash_to_curve(domain_prefix);
 
         let U_point = hasher(b"U_point");
         let U = C::from(U_point);
