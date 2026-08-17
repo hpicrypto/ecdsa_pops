@@ -17,6 +17,9 @@ mod relations;
 pub(crate) mod roks;
 pub mod utils;
 
+pub use bincode;
+pub use halo2curves;
+pub use merlin;
 pub use pop_ffa::*;
 pub use pop_native::*;
 pub use pop_sigma::*;

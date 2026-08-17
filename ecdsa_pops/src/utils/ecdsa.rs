@@ -19,8 +19,10 @@ pub struct ECDSA {
 /// [ECDSA] signature
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ECDSASignature {
-    pub(crate) Rx: Fq,
-    pub(crate) response: Fq,
+    /// Random X coordinate
+    pub Rx: Fq,
+    /// Response
+    pub response: Fq,
 }
 
 /// Transformed [ECDSASignature]
