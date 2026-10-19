@@ -23,14 +23,12 @@ bellpepper-core = { workspace = true }
 
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-halo2curves = { version="0.10", features = [
-  "asm",
-] }
-
-
+halo2curves = { workspace = true, features = ["asm"], optional = true }
 
 [dev-dependencies]
 rand = "0.8"
 
 [features]
+default = ["asm"]
 print-trace = ["ark-std/print-trace"]
+asm = ["dep:halo2curves"]

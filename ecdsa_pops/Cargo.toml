@@ -24,7 +24,7 @@ serde = { workspace = true }
 bincode = { workspace = true }
 rand_core = { workspace = true }
 thiserror = { workspace = true }
-r1csipa = { path = "../r1csipa/" }
+r1csipa = { path = "../r1csipa/", default-features = false }
 rok = { path = "../rok/" }
 pop_circuit_ffa = { path = "../pop_circuit_ffa/" }
 halo2curves = { workspace = true }
@@ -38,13 +38,15 @@ t256     = { path = "../CDLS/t256" }
 ark-secp256r1 = { version = "^0.4.0", default-features = false }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-halo2curves = { version = "0.10", features = ["asm"] }
+halo2curves = { workspace = true, features = ["asm"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 
 [features]
+default = ["asm"]
 print-trace = ["ark-std/print-trace", "r1csipa/print-trace"]
+asm = ["dep:halo2curves", "r1csipa/asm"]
 
 [[bench]]
 name = "pop_native"
