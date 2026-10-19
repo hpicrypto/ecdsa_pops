@@ -7,6 +7,7 @@ pub use halo2curves::{
 };
 use r1csipa::R1CSProofParams;
 use rok::{rok_compose, rok_compose_type, Nizk, RoK};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     circuit_native::{CSchnorrCircuit, CschnorrCircuitPublicInputs},
@@ -28,6 +29,7 @@ pub struct R1CSMetrics {
 }
 
 /// A proof of possesion of a P256 signature using native arithmetic
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PoPNativeNizk {
     /// A Bls Generator for committing to the limbs of pk
     ck_bls: G1Affine,
