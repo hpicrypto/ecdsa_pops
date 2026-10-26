@@ -125,6 +125,36 @@ fn criterion_benchmark(c: &mut Criterion) {
             nizk.verify(&mut transcript, &r_verifier, proof).unwrap()
         })
     });
+    verifier_group.finish();
+
+    // Deserialization alone (bincode + arkworks point decoding/validation).
+    let mut j = 0usize;
+    let mut deser_group = c.benchmark_group("pop-sigma deserialize");
+    deser_group.sample_size(sample_size);
+    deser_group.bench_function("pop-sigma deserialize", |b| {
+        b.iter(|| {
+            let bytes = &serialized[j % serialized.len()];
+            j += 1;
+            let proof: <PoPSigmaNizk as Nizk>::Proof = bincode::deserialize(bytes).unwrap();
+            proof
+        })
+    });
+    deser_group.finish();
+
+    // Verifier time including deserialization: what a real verifier pays.
+    let mut k = 0usize;
+    let mut from_bytes_group = c.benchmark_group("pop-sigma verifier (from bytes)");
+    from_bytes_group.sample_size(sample_size);
+    from_bytes_group.bench_function("pop-sigma verifier (from bytes)", |b| {
+        b.iter(|| {
+            let bytes = &serialized[k % serialized.len()];
+            k += 1;
+            let proof: <PoPSigmaNizk as Nizk>::Proof = bincode::deserialize(bytes).unwrap();
+            let mut transcript = transcript_template.clone();
+            nizk.verify(&mut transcript, &r_verifier, &proof).unwrap()
+        })
+    });
+    from_bytes_group.finish();
 }
 
 criterion_group!(benches, criterion_benchmark);

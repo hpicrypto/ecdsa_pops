@@ -48,6 +48,12 @@ impl SWCurveConfig for Config {
 
     /// GENERATOR = (G_GENERATOR_X, G_GENERATOR_Y)
     const GENERATOR: Affine = Affine::new_unchecked(G_GENERATOR_X, G_GENERATOR_Y);
+
+    /// arkworks 0.4 fix for subgroup check in prime-order groups
+    #[inline]
+    fn is_in_correct_subgroup_assuming_on_curve(_: &Affine) -> bool {
+        true
+    }
 }
 
 /// G_GENERATOR_X = 3
