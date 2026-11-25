@@ -800,7 +800,7 @@ macro_rules! __test_pedersen {
                 &cty,
             );
 
-            // C_τ and all T_i / U_i should be on the curve.
+            // C_τ and all T_i should be on the curve.
             assert!(proof.c_tau.is_on_curve());
             assert!(proof.t1.is_on_curve());
             assert!(proof.t2.is_on_curve());
@@ -808,9 +808,6 @@ macro_rules! __test_pedersen {
             assert!(proof.t4.is_on_curve());
             assert!(proof.t5.is_on_curve());
             assert!(proof.t6.is_on_curve());
-            assert!(proof.u1.is_on_curve());
-            assert!(proof.u2.is_on_curve());
-            assert!(proof.u3.is_on_curve());
 
             let mut transcript_v = Transcript::new(label);
             assert!(proof.verify(
@@ -886,7 +883,7 @@ macro_rules! __test_pedersen {
                 &cty,
             );
 
-            // C_τ and all T_i / U_i should be on the curve.
+            // C_τ and all T_i should be on the curve.
             assert!(proof.c_tau.is_on_curve());
             assert!(proof.t1.is_on_curve());
             assert!(proof.t2.is_on_curve());
@@ -895,9 +892,6 @@ macro_rules! __test_pedersen {
             assert!(proof.t5.is_on_curve());
             assert!(proof.t6.is_on_curve());
             assert!(proof.t7.is_on_curve()); // T_7 retained for standalone.
-            assert!(proof.u1.is_on_curve());
-            assert!(proof.u2.is_on_curve());
-            assert!(proof.u3.is_on_curve());
 
             // Completeness: verify with a matching transcript.
             let mut transcript_v = Transcript::new(label);
@@ -910,6 +904,39 @@ macro_rules! __test_pedersen {
                 &ctx.comm,
                 &cty.comm,
             ));
+
+            // Completeness of the batched (single-MSM) verifier.
+            let mut transcript_vb = Transcript::new(label);
+            assert!(proof.verify_batched(
+                &mut transcript_vb,
+                &cax.comm,
+                &cay.comm,
+                &cbx.comm,
+                &cby.comm,
+                &ctx.comm,
+                &cty.comm,
+                &mut OsRng,
+            ));
+
+            // Negative test: tamper with the merged opening / non-zero
+            // equation G = inv_f1·C_f1 + aux_f1·H.
+            for tamper in 0..2 {
+                let mut bad = proof.clone();
+                if tamper == 0 {
+                    bad.z_inv_f1 += <<$config as CurveConfig>::ScalarField as Field>::ONE;
+                } else {
+                    bad.z_aux_f1 += <<$config as CurveConfig>::ScalarField as Field>::ONE;
+                }
+                let mut tv = Transcript::new(label);
+                assert!(!bad.verify(
+                    &mut tv, &cax.comm, &cay.comm, &cbx.comm, &cby.comm, &ctx.comm, &cty.comm,
+                ));
+                let mut tvb = Transcript::new(label);
+                assert!(!bad.verify_batched(
+                    &mut tvb, &cax.comm, &cay.comm, &cbx.comm, &cby.comm, &ctx.comm, &cty.comm,
+                    &mut OsRng,
+                ));
+            }
 
             // Negative test: forge a proof for a wrong target t_f ≠ a + b.
             let mut tf = <$OtherProjectiveType>::rand(&mut OsRng).into_affine();

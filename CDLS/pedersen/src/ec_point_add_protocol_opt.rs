@@ -2,6 +2,20 @@
 //! It has: Optimisations 1 (Π_Sq for the squaring relation), 2 (sharing the
 //! mask of C_τ across coordinate proofs), and 3 (dropping Π_PD(C_2) opening
 //! proof, only valid when composed inside Π_SM).
+//!
+//! It also follows draft-cllz-cfrg-ecdsa-pop: the opening of C_f1 = C_3 - C_1
+//! and the non-zero proof for it are merged into the single linear equation:
+//!
+//! ```text
+//!   G = inv_f1 * C_f1 + aux_f1 * H
+//! ```
+//!
+//! with witness inv_f1 = 1/(b_x - a_x), aux_f1 = -(r_3 - r_1)/(b_x - a_x).
+//! A witness with inv_f1 = 0 would give G = aux_f1 * H, i.e. dlog_H(G); so
+//! inv_f1 != 0 and C_f1 opens to f1 = 1/inv_f1 != 0. This replaces the CDLS
+//! non-zero gadget (U_1, U_2, U_3, v_1, v_2, v_3) and the C_f1 opening
+//! (z_f1, z_rf1), saving 3 points and 3 scalars per proof.
+//!
 //! The protocol implemented here is inlined.
 //! DANGER: only use this inside the mul proof.
 
@@ -9,7 +23,7 @@ use ark_ec::{
     short_weierstrass::{self as sw},
     AffineRepr, CurveConfig, CurveGroup, VariableBaseMSM,
 };
-use ark_ff::{fields::Field, Zero};
+use ark_ff::fields::Field;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::UniformRand;
 use merlin::Transcript;
@@ -38,24 +52,16 @@ pub struct OptECPointAddProof<P: PedersenConfig> {
     pub t5: sw::Affine<P>,
     pub t6: sw::Affine<P>,
 
-    /// Non-zero subproof commitments.
-    pub u1: sw::Affine<P>,
-    pub u2: sw::Affine<P>,
-    pub u3: sw::Affine<P>,
-
     /// Responses (z_2, z_r2 dropped).
     pub z_tau: <P as CurveConfig>::ScalarField,
     pub z_rtau: <P as CurveConfig>::ScalarField,
-    pub z_f1: <P as CurveConfig>::ScalarField,
-    pub z_rf1: <P as CurveConfig>::ScalarField,
+    pub z_inv_f1: <P as CurveConfig>::ScalarField,
+    pub z_aux_f1: <P as CurveConfig>::ScalarField,
     pub z_e1: <P as CurveConfig>::ScalarField,
     pub z_e2: <P as CurveConfig>::ScalarField,
     pub z_f3: <P as CurveConfig>::ScalarField,
     pub z_rf3: <P as CurveConfig>::ScalarField,
     pub z_e3: <P as CurveConfig>::ScalarField,
-    pub v1: <P as CurveConfig>::ScalarField,
-    pub v2: <P as CurveConfig>::ScalarField,
-    pub v3: <P as CurveConfig>::ScalarField,
 }
 
 /// OptECPointAddIntermediate. Prover state between message and response.
@@ -65,17 +71,13 @@ pub struct OptECPointAddIntermediate<P: PedersenConfig> {
     // Random scalars (a_2, a_r2 dropped).
     pub a_tau: <P as CurveConfig>::ScalarField,
     pub a_rtau: <P as CurveConfig>::ScalarField,
-    pub a_f1: <P as CurveConfig>::ScalarField,
-    pub a_rf1: <P as CurveConfig>::ScalarField,
+    pub a_inv_f1: <P as CurveConfig>::ScalarField,
+    pub a_aux_f1: <P as CurveConfig>::ScalarField,
     pub a_e1: <P as CurveConfig>::ScalarField,
     pub a_e2: <P as CurveConfig>::ScalarField,
     pub a_f3: <P as CurveConfig>::ScalarField,
     pub a_rf3: <P as CurveConfig>::ScalarField,
     pub a_e3: <P as CurveConfig>::ScalarField,
-    pub beta_1: <P as CurveConfig>::ScalarField,
-    pub beta_2: <P as CurveConfig>::ScalarField,
-    pub beta_3: <P as CurveConfig>::ScalarField,
-    pub beta_4: <P as CurveConfig>::ScalarField,
 
     pub t1: sw::Affine<P>,
     pub t2: sw::Affine<P>,
@@ -83,13 +85,10 @@ pub struct OptECPointAddIntermediate<P: PedersenConfig> {
     pub t4: sw::Affine<P>,
     pub t5: sw::Affine<P>,
     pub t6: sw::Affine<P>,
-    pub u1: sw::Affine<P>,
-    pub u2: sw::Affine<P>,
-    pub u3: sw::Affine<P>,
 }
 
 impl<P: PedersenConfig> OptECPointAddProof<P> {
-    /// Build the transcript: append C_1..C_6 (statement), C_τ, all T_i, all U_i.
+    /// Build the transcript: append C_1..C_6 (statement), C_τ, all T_i.
     #[allow(clippy::too_many_arguments)]
     pub fn make_transcript(
         transcript: &mut Transcript,
@@ -106,9 +105,6 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
         t4: &sw::Affine<P>,
         t5: &sw::Affine<P>,
         t6: &sw::Affine<P>,
-        u1: &sw::Affine<P>,
-        u2: &sw::Affine<P>,
-        u3: &sw::Affine<P>,
     ) {
         OptECPointAdditionTranscript::domain_sep(transcript);
 
@@ -127,9 +123,6 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
             (b"T4", t4),
             (b"T5", t5),
             (b"T6", t6),
-            (b"U1", u1),
-            (b"U2", u2),
-            (b"U3", u3),
         ] {
             p.serialize_compressed(&mut buf).unwrap();
             OptECPointAdditionTranscript::append_point(transcript, label, &buf[..]);
@@ -151,7 +144,7 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
         _c5: &PedersenComm<P>,
         _c6: &PedersenComm<P>,
     ) -> OptECPointAddIntermediate<P> {
-        assert!(a != b); // No point-doubling.
+        assert!(a.x != b.x); // P_1 != ±P_2 (no doubling, no inverse pair).
 
         // τ = (b_y - a_y)/(b_x - a_x), then C_τ.
         let tau = (b.y - a.y) * ((b.x - a.x).inverse().unwrap());
@@ -164,29 +157,22 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
         // Sample masks.
         let a_tau = <P as CurveConfig>::ScalarField::rand(rng);
         let a_rtau = <P as CurveConfig>::ScalarField::rand(rng);
-        let a_f1 = <P as CurveConfig>::ScalarField::rand(rng);
-        let a_rf1 = <P as CurveConfig>::ScalarField::rand(rng);
+        let a_inv_f1 = <P as CurveConfig>::ScalarField::rand(rng);
+        let a_aux_f1 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_e1 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_e2 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_f3 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_rf3 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_e3 = <P as CurveConfig>::ScalarField::rand(rng);
 
-        // β_1 ∈ F*, β_2, β_3, β_4 ∈ F.
-        let beta_1 = loop {
-            let cand = <P as CurveConfig>::ScalarField::rand(rng);
-            if !cand.is_zero() {
-                break cand;
-            }
-        };
-        let beta_2 = <P as CurveConfig>::ScalarField::rand(rng);
-        let beta_3 = <P as CurveConfig>::ScalarField::rand(rng);
-        let beta_4 = <P as CurveConfig>::ScalarField::rand(rng);
-
         // T_1 = a_τ*G + a_rτ*H
         let t1_p = P::msm_generators(&a_tau, &a_rtau);
-        // T_2 = a_f1*G + a_rf1*H
-        let t2_p = P::msm_generators(&a_f1, &a_rf1);
+        // T_2 = a_inv*C_f1 + a_aux*H   (for G = inv_f1*C_f1 + aux_f1*H)
+        let t2_p = {
+            let bases = [c_f1_aff, P::GENERATOR2];
+            let scalars = [a_inv_f1, a_aux_f1];
+            <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
+        };
         // T_3 = a_τ*C_f1 + a_e1*H
         let t3_p = {
             let bases = [c_f1_aff, P::GENERATOR2];
@@ -208,50 +194,26 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
             <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
         };
 
-        // Non-zero subproof commitments.
-        // U_1 = β_1*(b_x - a_x)*G, must be ≠ O (which is why β_1 ≠ 0 and b_x ≠ a_x).
-        let bx_minus_ax_sf = <P as PedersenConfig>::from_ob_to_sf(b.x - a.x);
-        let u1_p = P::GENERATOR.into_group() * (beta_1 * bx_minus_ax_sf);
-        // U_2 = β_2*C_f1 + β_3*H
-        let u2_p = {
-            let bases = [c_f1_aff, P::GENERATOR2];
-            let scalars = [beta_2, beta_3];
-            <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
-        };
-        // U_3 = β_4*G
-        let u3_p = P::GENERATOR.into_group() * beta_4;
-
-        let pts = sw::Projective::<P>::normalize_batch(&[
-            t1_p, t2_p, t3_p, t4_p, t5_p, t6_p, u1_p, u2_p, u3_p,
-        ]);
-        let (t1, t2, t3, t4, t5, t6, u1, u2, u3) = (
-            pts[0], pts[1], pts[2], pts[3], pts[4], pts[5], pts[6], pts[7], pts[8],
-        );
+        let pts = sw::Projective::<P>::normalize_batch(&[t1_p, t2_p, t3_p, t4_p, t5_p, t6_p]);
+        let (t1, t2, t3, t4, t5, t6) = (pts[0], pts[1], pts[2], pts[3], pts[4], pts[5]);
 
         OptECPointAddIntermediate {
             c_tau_comm,
             a_tau,
             a_rtau,
-            a_f1,
-            a_rf1,
+            a_inv_f1,
+            a_aux_f1,
             a_e1,
             a_e2,
             a_f3,
             a_rf3,
             a_e3,
-            beta_1,
-            beta_2,
-            beta_3,
-            beta_4,
             t1,
             t2,
             t3,
             t4,
             t5,
             t6,
-            u1,
-            u2,
-            u3,
         }
     }
 
@@ -282,9 +244,6 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
             &inter.t4,
             &inter.t5,
             &inter.t6,
-            &inter.u1,
-            &inter.u2,
-            &inter.u3,
         );
     }
 
@@ -351,16 +310,19 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
         let bx_minus_ax = <P as PedersenConfig>::from_ob_to_sf(b.x - a.x);
         let ax_minus_tx = <P as PedersenConfig>::from_ob_to_sf(a.x - t.x);
 
+        // inv_f1 = 1/(b_x - a_x) ; aux_f1 = -(r_3 - r_1)/(b_x - a_x)
+        let inv_f1 = bx_minus_ax.inverse().unwrap();
+        let aux_f1 = -(c3.r - c1.r) * inv_f1;
+
         let r_tau = inter.c_tau_comm.r;
         let c = *chal;
 
-        // Coordinate-relation responses.
         // z_τ = a_τ + c*τ ; z_rτ = a_rτ + c*r_τ
         let z_tau = inter.a_tau + c * tau;
         let z_rtau = inter.a_rtau + c * r_tau;
-        // z_f1 = a_f1 + c*(b_x - a_x) ; z_rf1 = a_rf1 + c*(r_3 - r_1)
-        let z_f1 = inter.a_f1 + c * bx_minus_ax;
-        let z_rf1 = inter.a_rf1 + c * (c3.r - c1.r);
+        // z_inv = a_inv + c*inv_f1 ; z_aux = a_aux + c*aux_f1
+        let z_inv_f1 = inter.a_inv_f1 + c * inv_f1;
+        let z_aux_f1 = inter.a_aux_f1 + c * aux_f1;
         // z_e1 = a_e1 + c*((r_4 - r_2) - (r_3 - r_1)*τ)
         let z_e1 = inter.a_e1 + c * ((c4.r - c2.r) - (c3.r - c1.r) * tau);
         // z_e2 = a_e2 + c*((r_1 + r_3 + r_5) - r_τ*τ)
@@ -371,14 +333,6 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
         // z_e3 = a_e3 + c*((r_2 + r_6) - r_τ*(a_x - t_x))
         let z_e3 = inter.a_e3 + c * ((c2.r + c6.r) - r_tau * ax_minus_tx);
 
-        // Non-zero responses.
-        // v_1 = β_2 + c*β_1
-        let v1 = inter.beta_2 + c * inter.beta_1;
-        // v_2 = β_3 - c*β_1*(r_3 - r_1)
-        let v2 = inter.beta_3 - c * inter.beta_1 * (c3.r - c1.r);
-        // v_3 = β_4 + c*β_1*(b_x - a_x)
-        let v3 = inter.beta_4 + c * inter.beta_1 * bx_minus_ax;
-
         Self {
             c_tau: inter.c_tau_comm.comm,
             t1: inter.t1,
@@ -387,21 +341,15 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
             t4: inter.t4,
             t5: inter.t5,
             t6: inter.t6,
-            u1: inter.u1,
-            u2: inter.u2,
-            u3: inter.u3,
             z_tau,
             z_rtau,
-            z_f1,
-            z_rf1,
+            z_inv_f1,
+            z_aux_f1,
             z_e1,
             z_e2,
             z_f3,
             z_rf3,
             z_e3,
-            v1,
-            v2,
-            v3,
         }
     }
 
@@ -425,8 +373,8 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
         Self::create_proof_with_challenge(a, b, t, &inter, c1, c2, c3, c4, c5, c6, &chal)
     }
 
-    /// Verify with externally-supplied challenge. Checks 9 equations
-    /// (1, 2, 3, 4, 5, 6, 8, 9, 10), eq 7 dropped per Optimisation 3.
+    /// Verify with externally-supplied challenge. Checks 6 equations
+    /// (1..6); eq 7 is dropped per Optimisation 3.
     #[allow(clippy::too_many_arguments)]
     pub fn verify_with_challenge(
         &self,
@@ -445,10 +393,8 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
         let c5p = c5.into_group();
         let c6p = c6.into_group();
         let c_tau_p = self.c_tau.into_group();
-        let u1_p = self.u1.into_group();
 
-        let c_f1_p = c3p - c1p;
-        let c_f1 = c_f1_p.into_affine();
+        let c_f1 = (c3p - c1p).into_affine();
         let c_p1_p = c4p - c2p;
         let c_p2_p = c1p + c3p + c5p;
         let c_f3_p = c1p - c5p;
@@ -463,9 +409,14 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
             return false;
         }
 
-        // Eq (2): z_f1·G + z_rf1·H ?= T_2 + c·C_f1
-        let lhs2 = P::msm_generators(&self.z_f1, &self.z_rf1);
-        let rhs2 = self.t2.into_group() + c_f1_p * c;
+        // Eq (2): z_inv·C_f1 + z_aux·H ?= T_2 + c·G
+        // (C_f1 opens to a non-zero value; replaces opening + non-zero proof.)
+        let lhs2 = {
+            let bases = [c_f1, P::GENERATOR2];
+            let scalars = [self.z_inv_f1, self.z_aux_f1];
+            <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
+        };
+        let rhs2 = self.t2.into_group() + P::GENERATOR * c;
         if lhs2 != rhs2 {
             return false;
         }
@@ -506,35 +457,8 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
             <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
         };
         let rhs6 = self.t6.into_group() + c_p3_p * c;
-        if lhs6 != rhs6 {
-            return false;
-        }
-
+        lhs6 == rhs6
         // Eq (7) is dropped (Opt 3).
-
-        // Eq (8): U_1 ?≠ O
-        if u1_p.is_zero() {
-            return false;
-        }
-
-        // Eqs (9) and (10) share `c·U_1`; compute once.
-        let u1_c = u1_p * c;
-
-        // Eq (9): c·U_1 + U_3 ?= v_3·G
-        let lhs9 = u1_c + self.u3.into_group();
-        let rhs9 = P::GENERATOR.into_group() * self.v3;
-        if lhs9 != rhs9 {
-            return false;
-        }
-
-        // Eq (10): c·U_1 + U_2 ?= v_1·C_f1 + v_2·H
-        let lhs10 = u1_c + self.u2.into_group();
-        let rhs10 = {
-            let bases = [c_f1, P::GENERATOR2];
-            let scalars = [self.v1, self.v2];
-            <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
-        };
-        lhs10 == rhs10
     }
 
     /// Verifier step 1: absorb statement + proof's first message, squeeze the
@@ -565,9 +489,6 @@ impl<P: PedersenConfig> OptECPointAddProof<P> {
             &self.t4,
             &self.t5,
             &self.t6,
-            &self.u1,
-            &self.u2,
-            &self.u3,
         );
         Self::challenge(transcript)
     }

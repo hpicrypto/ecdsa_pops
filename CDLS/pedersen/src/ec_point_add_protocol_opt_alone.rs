@@ -11,6 +11,19 @@
 //! Compared to the unoptimised [ECPointAddProof], saves:
 //!   * Opt 1: 1 point + 2 scalars.
 //!   * Opt 2: 2 points + 4 scalars.
+//!
+//! It also follows draft-cllz-cfrg-ecdsa-pop: the opening of C_f1 = C_3 - C_1
+//! and the non-zero proof for it are merged into the single linear equation
+//!
+//! ```text
+//!   G = inv_f1 * C_f1 + aux_f1 * H
+//! ```
+//!
+//! with witness inv_f1 = 1/(b_x - a_x), aux_f1 = -(r_3 - r_1)/(b_x - a_x).
+//! A witness with inv_f1 = 0 would give G = aux_f1 * H, i.e. dlog_H(G); so
+//! inv_f1 != 0 and C_f1 opens to f1 = 1/inv_f1 != 0. This replaces the CDLS
+//! non-zero gadget (U_1, U_2, U_3, v_1, v_2, v_3) and the C_f1 opening
+//! (z_f1, z_rf1), saving a further 3 points + 3 scalars.
 
 use ark_ec::{
     short_weierstrass::{self as sw},
@@ -46,16 +59,11 @@ pub struct SqECPointAddProof<P: PedersenConfig> {
     pub t6: sw::Affine<P>,
     pub t7: sw::Affine<P>,
 
-    /// Non-zero subproof commitments.
-    pub u1: sw::Affine<P>,
-    pub u2: sw::Affine<P>,
-    pub u3: sw::Affine<P>,
-
     /// Responses (z_2, z_r2 included for the C_2 opening).
     pub z_tau: <P as CurveConfig>::ScalarField,
     pub z_rtau: <P as CurveConfig>::ScalarField,
-    pub z_f1: <P as CurveConfig>::ScalarField,
-    pub z_rf1: <P as CurveConfig>::ScalarField,
+    pub z_inv_f1: <P as CurveConfig>::ScalarField,
+    pub z_aux_f1: <P as CurveConfig>::ScalarField,
     pub z_e1: <P as CurveConfig>::ScalarField,
     pub z_e2: <P as CurveConfig>::ScalarField,
     pub z_f3: <P as CurveConfig>::ScalarField,
@@ -63,9 +71,6 @@ pub struct SqECPointAddProof<P: PedersenConfig> {
     pub z_e3: <P as CurveConfig>::ScalarField,
     pub z_2: <P as CurveConfig>::ScalarField,
     pub z_r2: <P as CurveConfig>::ScalarField,
-    pub v1: <P as CurveConfig>::ScalarField,
-    pub v2: <P as CurveConfig>::ScalarField,
-    pub v3: <P as CurveConfig>::ScalarField,
 }
 
 /// SqECPointAddIntermediate. Prover state between message and response.
@@ -74,8 +79,8 @@ pub struct SqECPointAddIntermediate<P: PedersenConfig> {
 
     pub a_tau: <P as CurveConfig>::ScalarField,
     pub a_rtau: <P as CurveConfig>::ScalarField,
-    pub a_f1: <P as CurveConfig>::ScalarField,
-    pub a_rf1: <P as CurveConfig>::ScalarField,
+    pub a_inv_f1: <P as CurveConfig>::ScalarField,
+    pub a_aux_f1: <P as CurveConfig>::ScalarField,
     pub a_e1: <P as CurveConfig>::ScalarField,
     pub a_e2: <P as CurveConfig>::ScalarField,
     pub a_f3: <P as CurveConfig>::ScalarField,
@@ -83,10 +88,6 @@ pub struct SqECPointAddIntermediate<P: PedersenConfig> {
     pub a_e3: <P as CurveConfig>::ScalarField,
     pub a_2: <P as CurveConfig>::ScalarField,
     pub a_r2: <P as CurveConfig>::ScalarField,
-    pub beta_1: <P as CurveConfig>::ScalarField,
-    pub beta_2: <P as CurveConfig>::ScalarField,
-    pub beta_3: <P as CurveConfig>::ScalarField,
-    pub beta_4: <P as CurveConfig>::ScalarField,
 
     pub t1: sw::Affine<P>,
     pub t2: sw::Affine<P>,
@@ -95,13 +96,10 @@ pub struct SqECPointAddIntermediate<P: PedersenConfig> {
     pub t5: sw::Affine<P>,
     pub t6: sw::Affine<P>,
     pub t7: sw::Affine<P>,
-    pub u1: sw::Affine<P>,
-    pub u2: sw::Affine<P>,
-    pub u3: sw::Affine<P>,
 }
 
 impl<P: PedersenConfig> SqECPointAddProof<P> {
-    /// Build the transcript: append C_1..C_6 (statement), C_τ, T_1..T_7, U_1..U_3.
+    /// Build the transcript: append C_1..C_6 (statement), C_τ, T_1..T_7.
     #[allow(clippy::too_many_arguments)]
     pub fn make_transcript(
         transcript: &mut Transcript,
@@ -119,9 +117,6 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         t5: &sw::Affine<P>,
         t6: &sw::Affine<P>,
         t7: &sw::Affine<P>,
-        u1: &sw::Affine<P>,
-        u2: &sw::Affine<P>,
-        u3: &sw::Affine<P>,
     ) {
         SqECPointAdditionTranscript::domain_sep(transcript);
 
@@ -141,9 +136,6 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             (b"T5", t5),
             (b"T6", t6),
             (b"T7", t7),
-            (b"U1", u1),
-            (b"U2", u2),
-            (b"U3", u3),
         ] {
             p.serialize_compressed(&mut buf).unwrap();
             SqECPointAdditionTranscript::append_point(transcript, label, &buf[..]);
@@ -165,7 +157,7 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         c5: &PedersenComm<P>,
         c6: &PedersenComm<P>,
     ) -> SqECPointAddIntermediate<P> {
-        assert!(a != b); // No point-doubling.
+        assert!(a.x != b.x); // P_1 != ±P_2 (no doubling, no inverse pair).
 
         // τ = (b_y - a_y)/(b_x - a_x).
         let tau = (b.y - a.y) * ((b.x - a.x).inverse().unwrap());
@@ -179,8 +171,8 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         // Sample masks.
         let a_tau = <P as CurveConfig>::ScalarField::rand(rng);
         let a_rtau = <P as CurveConfig>::ScalarField::rand(rng);
-        let a_f1 = <P as CurveConfig>::ScalarField::rand(rng);
-        let a_rf1 = <P as CurveConfig>::ScalarField::rand(rng);
+        let a_inv_f1 = <P as CurveConfig>::ScalarField::rand(rng);
+        let a_aux_f1 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_e1 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_e2 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_f3 = <P as CurveConfig>::ScalarField::rand(rng);
@@ -190,20 +182,14 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         let a_2 = <P as CurveConfig>::ScalarField::rand(rng);
         let a_r2 = <P as CurveConfig>::ScalarField::rand(rng);
 
-        // β_1 ∈ F*, β_2, β_3, β_4 ∈ F.
-        let beta_1 = loop {
-            let cand = <P as CurveConfig>::ScalarField::rand(rng);
-            if !cand.is_zero() {
-                break cand;
-            }
-        };
-        let beta_2 = <P as CurveConfig>::ScalarField::rand(rng);
-        let beta_3 = <P as CurveConfig>::ScalarField::rand(rng);
-        let beta_4 = <P as CurveConfig>::ScalarField::rand(rng);
-
         // T_1..T_6 as in the optimised version.
         let t1_p = P::msm_generators(&a_tau, &a_rtau);
-        let t2_p = P::msm_generators(&a_f1, &a_rf1);
+        // T_2 = a_inv·C_f1 + a_aux·H   (for G = inv_f1·C_f1 + aux_f1·H)
+        let t2_p = {
+            let bases = [c_f1_aff, P::GENERATOR2];
+            let scalars = [a_inv_f1, a_aux_f1];
+            <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
+        };
         let t3_p = {
             let bases = [c_f1_aff, P::GENERATOR2];
             let scalars = [a_tau, a_e1];
@@ -223,22 +209,10 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         // T_7 = a_2·G + a_r2·H — the C_2 opening commitment.
         let t7_p = P::msm_generators(&a_2, &a_r2);
 
-        // Non-zero subproof commitments.
-        let bx_minus_ax_sf = <P as PedersenConfig>::from_ob_to_sf(b.x - a.x);
-        let u1_p = P::GENERATOR.into_group() * (beta_1 * bx_minus_ax_sf);
-        let u2_p = {
-            let bases = [c_f1_aff, P::GENERATOR2];
-            let scalars = [beta_2, beta_3];
-            <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
-        };
-        let u3_p = P::GENERATOR.into_group() * beta_4;
-
-        let pts = sw::Projective::<P>::normalize_batch(&[
-            t1_p, t2_p, t3_p, t4_p, t5_p, t6_p, t7_p, u1_p, u2_p, u3_p,
-        ]);
-        let (t1, t2, t3, t4, t5, t6, t7, u1, u2, u3) = (
-            pts[0], pts[1], pts[2], pts[3], pts[4], pts[5], pts[6], pts[7], pts[8], pts[9],
-        );
+        let pts =
+            sw::Projective::<P>::normalize_batch(&[t1_p, t2_p, t3_p, t4_p, t5_p, t6_p, t7_p]);
+        let (t1, t2, t3, t4, t5, t6, t7) =
+            (pts[0], pts[1], pts[2], pts[3], pts[4], pts[5], pts[6]);
 
         Self::make_transcript(
             transcript,
@@ -256,17 +230,14 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             &t5,
             &t6,
             &t7,
-            &u1,
-            &u2,
-            &u3,
         );
 
         SqECPointAddIntermediate {
             c_tau_comm,
             a_tau,
             a_rtau,
-            a_f1,
-            a_rf1,
+            a_inv_f1,
+            a_aux_f1,
             a_e1,
             a_e2,
             a_f3,
@@ -274,10 +245,6 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             a_e3,
             a_2,
             a_r2,
-            beta_1,
-            beta_2,
-            beta_3,
-            beta_4,
             t1,
             t2,
             t3,
@@ -285,9 +252,6 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             t5,
             t6,
             t7,
-            u1,
-            u2,
-            u3,
         }
     }
 
@@ -312,14 +276,18 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         let ax_minus_tx = <P as PedersenConfig>::from_ob_to_sf(a.x - t.x);
         let a_y_sf = <P as PedersenConfig>::from_ob_to_sf(a.y);
 
+        // inv_f1 = 1/(b_x - a_x) ; aux_f1 = -(r_3 - r_1)/(b_x - a_x)
+        let inv_f1 = bx_minus_ax.inverse().unwrap();
+        let aux_f1 = -(c3.r - c1.r) * inv_f1;
+
         let r_tau = inter.c_tau_comm.r;
         let c = *chal;
 
         // Coordinate-relation responses.
         let z_tau = inter.a_tau + c * tau;
         let z_rtau = inter.a_rtau + c * r_tau;
-        let z_f1 = inter.a_f1 + c * bx_minus_ax;
-        let z_rf1 = inter.a_rf1 + c * (c3.r - c1.r);
+        let z_inv_f1 = inter.a_inv_f1 + c * inv_f1;
+        let z_aux_f1 = inter.a_aux_f1 + c * aux_f1;
         let z_e1 = inter.a_e1 + c * ((c4.r - c2.r) - (c3.r - c1.r) * tau);
         let z_e2 = inter.a_e2 + c * ((c1.r + c3.r + c5.r) - r_tau * tau);
         let z_f3 = inter.a_f3 + c * ax_minus_tx;
@@ -328,11 +296,6 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         // C_2 opening responses: z_2 = a_2 + c·a_y, z_r2 = a_r2 + c·r_2.
         let z_2 = inter.a_2 + c * a_y_sf;
         let z_r2 = inter.a_r2 + c * c2.r;
-
-        // Non-zero responses.
-        let v1 = inter.beta_2 + c * inter.beta_1;
-        let v2 = inter.beta_3 - c * inter.beta_1 * (c3.r - c1.r);
-        let v3 = inter.beta_4 + c * inter.beta_1 * bx_minus_ax;
 
         Self {
             c_tau: inter.c_tau_comm.comm,
@@ -343,13 +306,10 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             t5: inter.t5,
             t6: inter.t6,
             t7: inter.t7,
-            u1: inter.u1,
-            u2: inter.u2,
-            u3: inter.u3,
             z_tau,
             z_rtau,
-            z_f1,
-            z_rf1,
+            z_inv_f1,
+            z_aux_f1,
             z_e1,
             z_e2,
             z_f3,
@@ -357,9 +317,6 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             z_e3,
             z_2,
             z_r2,
-            v1,
-            v2,
-            v3,
         }
     }
 
@@ -384,7 +341,7 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         Self::create_proof_with_challenge(a, b, t, &inter, c1, c2, c3, c4, c5, c6, &chal)
     }
 
-    /// Verify with externally-supplied challenge. Checks all 10 equations (1..7, 8, 9, 10).
+    /// Verify with externally-supplied challenge. Checks all 7 equations.
     #[allow(clippy::too_many_arguments)]
     pub fn verify_with_challenge(
         &self,
@@ -403,10 +360,8 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         let c5p = c5.into_group();
         let c6p = c6.into_group();
         let c_tau_p = self.c_tau.into_group();
-        let u1_p = self.u1.into_group();
 
-        let c_f1_p = c3p - c1p;
-        let c_f1 = c_f1_p.into_affine();
+        let c_f1 = (c3p - c1p).into_affine();
         let c_p1_p = c4p - c2p;
         let c_p2_p = c1p + c3p + c5p;
         let c_f3_p = c1p - c5p;
@@ -421,9 +376,14 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             return false;
         }
 
-        // Eq (2): z_f1·G + z_rf1·H ?= T_2 + c·C_f1
-        let lhs2 = P::msm_generators(&self.z_f1, &self.z_rf1);
-        let rhs2 = self.t2.into_group() + c_f1_p * c;
+        // Eq (2): z_inv·C_f1 + z_aux·H ?= T_2 + c·G
+        // (C_f1 opens to a non-zero value; replaces opening + non-zero proof.)
+        let lhs2 = {
+            let bases = [c_f1, P::GENERATOR2];
+            let scalars = [self.z_inv_f1, self.z_aux_f1];
+            <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
+        };
+        let rhs2 = self.t2.into_group() + P::GENERATOR * c;
         if lhs2 != rhs2 {
             return false;
         }
@@ -471,33 +431,7 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         // Eq (7): z_2·G + z_r2·H ?= T_7 + c·C_2 (C_2 opening proof).
         let lhs7 = P::msm_generators(&self.z_2, &self.z_r2);
         let rhs7 = self.t7.into_group() + c2p * c;
-        if lhs7 != rhs7 {
-            return false;
-        }
-
-        // Eq (8): U_1 ?≠ O
-        if u1_p.is_zero() {
-            return false;
-        }
-
-        // Eqs (9) and (10) share c·U_1.
-        let u1_c = u1_p * c;
-
-        // Eq (9): c·U_1 + U_3 ?= v_3·G
-        let lhs9 = u1_c + self.u3.into_group();
-        let rhs9 = P::GENERATOR.into_group() * self.v3;
-        if lhs9 != rhs9 {
-            return false;
-        }
-
-        // Eq (10): c·U_1 + U_2 ?= v_1·C_f1 + v_2·H
-        let lhs10 = u1_c + self.u2.into_group();
-        let rhs10 = {
-            let bases = [c_f1, P::GENERATOR2];
-            let scalars = [self.v1, self.v2];
-            <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap()
-        };
-        lhs10 == rhs10
+        lhs7 == rhs7
     }
 
     /// Verify: re-derive challenge from transcript, then check.
@@ -528,20 +462,16 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             &self.t5,
             &self.t6,
             &self.t7,
-            &self.u1,
-            &self.u2,
-            &self.u3,
         );
         let chal_buf = SqECPointAdditionTranscript::challenge_scalar(transcript, b"c");
         let chal = <P as PedersenConfig>::make_challenge_from_buffer(&chal_buf);
         self.verify_with_challenge(c1, c2, c3, c4, c5, c6, &chal)
     }
 
-    /// Returns the (bases, scalars) for one combined MSM that must equal zero,
-    /// or None if U_1 = O. All 9 group equations (1..7, 9, 10) are folded into
-    /// one check with independent random weights; eq (8) is checked directly.
-    /// Derived commitments (C_f1, C_p1, C_p2, C_f3, C_p3) are expanded into
-    /// C_1..C_6 so every base is an original point.
+    /// Returns the (bases, scalars) for one combined MSM that must equal zero.
+    /// All 7 group equations are folded into one check with independent
+    /// random weights. Derived commitments (C_f1, C_p1, C_p2, C_f3, C_p3) are
+    /// expanded into C_1..C_6 so every base is an original point.
     #[allow(clippy::too_many_arguments)]
     #[allow(clippy::type_complexity)]
     pub fn verification_terms<R: RngCore + CryptoRng>(
@@ -554,12 +484,7 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         c6: &sw::Affine<P>,
         chal: &<P as CurveConfig>::ScalarField,
         rng: &mut R,
-    ) -> Option<(Vec<sw::Affine<P>>, Vec<<P as CurveConfig>::ScalarField>)> {
-        // Eq (8): U_1 ?!= O
-        if self.u1.is_zero() {
-            return None;
-        }
-
+    ) -> (Vec<sw::Affine<P>>, Vec<<P as CurveConfig>::ScalarField>) {
         let c = *chal;
 
         // Independent random weights, one per equation. None may be fixed
@@ -572,11 +497,9 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         let r5 = rand();
         let r6 = rand();
         let r7 = rand();
-        let r9 = rand();
-        let r10 = rand();
 
-        // Total coefficient on C_f1 = C_3 - C_1, from eqs (2), (3), (10).
-        let k = -r2 * c + r3 * self.z_tau - r10 * self.v1;
+        // Total coefficient on C_f1 = C_3 - C_1, from eqs (2), (3).
+        let k = r2 * self.z_inv_f1 + r3 * self.z_tau;
 
         let bases = vec![
             P::GENERATOR,  // G
@@ -595,23 +518,19 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             self.t5,
             self.t6,
             self.t7,
-            self.u1,
-            self.u2,
-            self.u3,
         ];
 
         let scalars = vec![
-            // G: eqs (1), (2), (5), (7), (9)
-            r1 * self.z_tau + r2 * self.z_f1 + r5 * self.z_f3 + r7 * self.z_2 - r9 * self.v3,
-            // H: eqs (1)-(7), (10)
+            // G: eqs (1), (2) [c·G on the right], (5), (7)
+            r1 * self.z_tau - r2 * c + r5 * self.z_f3 + r7 * self.z_2,
+            // H: eqs (1)-(7)
             r1 * self.z_rtau
-                + r2 * self.z_rf1
+                + r2 * self.z_aux_f1
                 + r3 * self.z_e1
                 + r4 * self.z_e2
                 + r5 * self.z_rf3
                 + r6 * self.z_e3
-                + r7 * self.z_r2
-                - r10 * self.v2,
+                + r7 * self.z_r2,
             // C_tau: eqs (1), (4), (6)
             -r1 * c + r4 * self.z_tau + r6 * self.z_f3,
             // C_1: -C_f1 part, C_p2 = C1+C3+C5 (eq 4), C_f3 = C1-C5 (eq 5)
@@ -634,15 +553,9 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             -r5,
             -r6,
             -r7,
-            // U_1: shared c·U_1 in eqs (9), (10)
-            (r9 + r10) * c,
-            // U_2: eq (10)
-            r10,
-            // U_3: eq (9)
-            r9,
         ];
 
-        Some((bases, scalars))
+        (bases, scalars)
     }
 
     pub fn batch_verify<R: RngCore + CryptoRng>(
@@ -653,16 +566,12 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
         )],
         rng: &mut R,
     ) -> bool {
-        let mut bases = Vec::with_capacity(19 * items.len());
-        let mut scalars = Vec::with_capacity(19 * items.len());
+        let mut bases = Vec::with_capacity(16 * items.len());
+        let mut scalars = Vec::with_capacity(16 * items.len());
         for (proof, [c1, c2, c3, c4, c5, c6], chal) in items {
-            match proof.verification_terms(c1, c2, c3, c4, c5, c6, chal, rng) {
-                Some((b, s)) => {
-                    bases.extend(b);
-                    scalars.extend(s);
-                }
-                None => return false, // some U_1 = O
-            }
+            let (b, s) = proof.verification_terms(c1, c2, c3, c4, c5, c6, chal, rng);
+            bases.extend(b);
+            scalars.extend(s);
         }
         <sw::Projective<P> as VariableBaseMSM>::msm(&bases, &scalars).unwrap().is_zero()
     }
@@ -695,9 +604,6 @@ impl<P: PedersenConfig> SqECPointAddProof<P> {
             &self.t5,
             &self.t6,
             &self.t7,
-            &self.u1,
-            &self.u2,
-            &self.u3,
         );
         let chal_buf = SqECPointAdditionTranscript::challenge_scalar(transcript, b"c");
         let chal = <P as PedersenConfig>::make_challenge_from_buffer(&chal_buf);

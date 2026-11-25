@@ -271,9 +271,6 @@ impl<P: PedersenConfig> ECDSASigWCProof<P> {
             &self.point_add.t5,
             &self.point_add.t6,
             &self.point_add.t7,
-            &self.point_add.u1,
-            &self.point_add.u2,
-            &self.point_add.u3,
         );
 
         if !self.scalar_mul.verify(transcript, r, &self.c_lhs_x, &self.c_lhs_y) {
